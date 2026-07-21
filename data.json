@@ -308,5 +308,19 @@
       "longitude": 99.021306,
       "source": "PB06"
     }
+  ],
+  "landmarks": [
+    {
+      "type": "source",
+      "name": "ต้นน้ำแม่กวง (เทือกเขาดอยสะเก็ด)",
+      "latitude": 19.020752,
+      "longitude": 99.308423
+    },
+    {
+      "type": "dam",
+      "name": "เขื่อนแม่กวงอุดมธารา",
+      "latitude": 18.9261,
+      "longitude": 99.115
+    }
   ]
 }

@@ -12,6 +12,7 @@ const RIVER = {
 
 const state = {
   points: [],
+  landmarks: [],
   river: null,          // array of [lat,lng]
   map: null,
   markers: {},
@@ -34,15 +35,21 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const [data, rivers, otherRivers] = await Promise.all([
-    fetch("data.json?v=2").then((r) => r.json()),
-    fetch("rivers.geojson?v=2").then((r) => r.json()).catch(() => null),
+  const [data, rivers, otherRivers, reservoir, connectors] = await Promise.all([
+    fetch("data.json?v=3").then((r) => r.json()),
+    fetch("rivers.geojson?v=3").then((r) => r.json()).catch(() => null),
     fetch("rivers_other.geojson?v=1").then((r) => r.json()).catch(() => null),
+    fetch("reservoir.geojson?v=1").then((r) => r.json()).catch(() => null),
+    fetch("connectors.geojson?v=1").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
+  state.landmarks = data.landmarks || [];
   setupMap();
   if (otherRivers) addOtherRivers(otherRivers);   // subtle background rivers
-  if (rivers) addRiver(rivers);                    // prominent Mae Kuang (on top)
+  if (reservoir) addReservoir(reservoir);         // Mae Kuang reservoir (water body)
+  if (connectors) addConnectors(connectors);      // schematic below-dam link
+  if (rivers) addRiver(rivers);                    // prominent Mae Kuang (upper + lower)
+  addLandmarks();                                  // source + dam markers
   buildFilters();
   addMarkers();
   render();
@@ -57,9 +64,13 @@ function setupMap() {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(state.map);
 
-  // panes: other rivers (subtle) sit below the prominent Mae Kuang, both above tiles / below markers
+  // panes (low → high): reservoir < other rivers < connector < prominent Mae Kuang
+  state.map.createPane("reservoir");
+  state.map.getPane("reservoir").style.zIndex = 330;
   state.map.createPane("riverOther");
   state.map.getPane("riverOther").style.zIndex = 340;
+  state.map.createPane("connector");
+  state.map.getPane("connector").style.zIndex = 345;
   state.map.createPane("river");
   state.map.getPane("river").style.zIndex = 350;
 }
@@ -88,26 +99,70 @@ function addOtherRivers(geojson) {
   }).addTo(state.map);
 }
 
-// ---------- River (prominent Mae Kuang) ----------
+// ---------- Reservoir (อ่างเก็บน้ำแม่กวง) ----------
+function addReservoir(geojson) {
+  L.geoJSON(geojson, {
+    pane: "reservoir",
+    style: { color: "#38bdf8", weight: 1.5, opacity: 0.7, fillColor: "#7dd3fc", fillOpacity: 0.5 },
+  }).bindTooltip("อ่างเก็บน้ำแม่กวง", { sticky: true, direction: "top", className: "river-tip" })
+    .addTo(state.map);
+}
+
+// ---------- Schematic connector below the dam (canal stretch, no animation) ----------
+function addConnectors(geojson) {
+  L.geoJSON(geojson, {
+    pane: "connector",
+    style: { color: "#0ea5e9", weight: 3, opacity: 0.55, dashArray: "3 8", lineCap: "round" },
+    onEachFeature: (f, layer) => {
+      const n = f.properties?.name;
+      if (n) layer.bindTooltip(n, { sticky: true, direction: "top", className: "river-tip" });
+    },
+  }).addTo(state.map);
+}
+
+// ---------- River (prominent Mae Kuang — upper + lower parts) ----------
 function addRiver(geojson) {
-  const feat = geojson.features.find((f) => f.geometry?.type === "LineString");
-  if (!feat) return;
-  const line = feat.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-  state.river = line;
+  const lines = geojson.features
+    .filter((f) => f.geometry?.type === "LineString")
+    .map((f) => f.geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+  if (!lines.length) return;
+  state.river = lines.flat();
   const pane = { pane: "river", lineCap: "round", lineJoin: "round" };
 
-  // 1) soft outer glow
-  L.polyline(line, { ...pane, color: RIVER.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
-  // 2) main body (hover shows name)
-  L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 })
-    .bindTooltip("แม่น้ำกวง", { sticky: true, direction: "top", className: "river-tip" })
-    .addTo(state.map);
-  // 3) animated downstream flow dashes (start -> end = north -> south)
-  //    the moving dashes convey flow direction on their own — no arrow markers
-  L.polyline(line, {
-    ...pane, color: RIVER.flow, weight: 3, opacity: 0.95,
-    dashArray: "10 20", className: "river-flow",
-  }).addTo(state.map);
+  for (const line of lines) {
+    // 1) soft outer glow
+    L.polyline(line, { ...pane, color: RIVER.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
+    // 2) main body (hover shows name)
+    L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 })
+      .bindTooltip("แม่น้ำกวง", { sticky: true, direction: "top", className: "river-tip" })
+      .addTo(state.map);
+    // 3) animated downstream flow dashes (each part ordered source -> downstream)
+    L.polyline(line, {
+      ...pane, color: RIVER.flow, weight: 3, opacity: 0.95,
+      dashArray: "10 20", className: "river-flow",
+    }).addTo(state.map);
+  }
+}
+
+// ---------- Landmarks: source + dam ----------
+function addLandmarks() {
+  const icons = {
+    source: { emoji: "🏔️", cls: "lm-source" },
+    dam: { emoji: "🏞️", cls: "lm-dam" },
+  };
+  for (const lm of state.landmarks || []) {
+    if (!lm.latitude || !lm.longitude) continue;
+    const meta = icons[lm.type] || { emoji: "📍", cls: "" };
+    L.marker([lm.latitude, lm.longitude], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div class="landmark ${meta.cls}">${meta.emoji}</div>`,
+        iconSize: [26, 26], iconAnchor: [13, 13],
+      }),
+      zIndexOffset: 500,
+    }).bindTooltip(lm.name, { direction: "top", offset: [0, -10], className: "river-tip" })
+      .addTo(state.map);
+  }
 }
 
 // ---------- Filters ----------
