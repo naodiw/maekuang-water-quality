@@ -63,10 +63,22 @@ html, body {
 }
 .flow-hint { color: #0369a1; font-style: normal; font-size: 12px; margin-left: 2px; }
 .river-swatch-other {
-  background: #6ba6cc;
+  background: #2f88c2;
   box-shadow: none;
   height: 3px;
 }
+/* river name tooltip on hover */
+.river-tip.leaflet-tooltip {
+  background: #0e2a3d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.river-tip.leaflet-tooltip-top::before { border-top-color: #0e2a3d; }
 
 /* ---- River flow animation ---- */
 .river-flow {

@@ -68,12 +68,23 @@ function groupColor(group) {
   return (GROUP_META[group] || {}).color || "#697386";
 }
 
-// ---------- Other rivers (subtle background, no animation) ----------
+// ---------- Other rivers (background, no animation, hover shows name) ----------
 function addOtherRivers(geojson) {
+  const base = { color: "#2f88c2", weight: 2.6, opacity: 0.85, lineCap: "round", lineJoin: "round" };
+
+  // visible base line
+  L.geoJSON(geojson, { pane: "riverOther", interactive: false, style: base }).addTo(state.map);
+
+  // transparent wide hit layer — easy hover, shows name + highlight glow
   L.geoJSON(geojson, {
     pane: "riverOther",
-    interactive: false,
-    style: { color: "#6ba6cc", weight: 1.8, opacity: 0.55, lineCap: "round", lineJoin: "round" },
+    style: { color: "#0e6ba8", weight: 12, opacity: 0 },
+    onEachFeature: (f, layer) => {
+      const name = (f.properties && f.properties.name) || "สายน้ำ (ไม่ระบุชื่อ)";
+      layer.bindTooltip(name, { sticky: true, direction: "top", className: "river-tip" });
+      layer.on("mouseover", () => layer.setStyle({ opacity: 0.9, weight: 6 }));
+      layer.on("mouseout", () => layer.setStyle({ opacity: 0 }));
+    },
   }).addTo(state.map);
 }
 
@@ -87,8 +98,10 @@ function addRiver(geojson) {
 
   // 1) soft outer glow
   L.polyline(line, { ...pane, color: RIVER.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
-  // 2) main body
-  L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 }).addTo(state.map);
+  // 2) main body (hover shows name)
+  L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 })
+    .bindTooltip("แม่น้ำกวง", { sticky: true, direction: "top", className: "river-tip" })
+    .addTo(state.map);
   // 3) animated downstream flow dashes (start -> end = north -> south)
   //    the moving dashes convey flow direction on their own — no arrow markers
   L.polyline(line, {

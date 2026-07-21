@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (เพิ่มแม่น้ำอื่นในเชียงใหม่/ลำพูนแบบเส้นจาง ไม่มี animation — แม่น้ำกวงยังเด่น)
+**อัปเดตล่าสุด:** 2026-07-21 (แม่น้ำอื่นชัดขึ้น weight 2.6 + hover ขึ้นชื่อสายน้ำ + ไฮไลต์ — ยืนยันแม่น้ำปิงอยู่ครบ)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -51,8 +51,12 @@
 ### แม่น้ำอื่น (background layer)
 - `rivers_other.geojson` = 137 เส้น จาก Overpass `way["waterway"="river"](18.45,98.78,19.15,99.15)`
 - **ตัดชื่อ `แม่น้ำกวง`, `น้ำแม่กวง` ออก** (แสดงเด่นแยกใน rivers.geojson แล้ว)
-- render ใน pane `riverOther` (zIndex 340, ใต้ pane `river` 350): เส้นเดียว สี #6ba6cc weight 1.8 opacity 0.55 **ไม่มี animation** ตาม feedback (ต้องเห็นแต่ไม่เด่นเกิน)
-- ถ้าจะเพิ่ม/ลดความจาง แก้ที่ฟังก์ชัน `addOtherRivers()` ใน app.js
+- render ใน pane `riverOther` (zIndex 340, ใต้ pane `river` 350) **ไม่มี animation**:
+  - **base line**: สี #2f88c2 weight 2.6 opacity 0.85 (interactive:false)
+  - **hit layer**: เส้นโปร่งใส weight 12 ทับ base → hover ง่าย, mouseover โชว์ tooltip ชื่อสายน้ำ (`.river-tip`) + ไฮไลต์ opacity 0.9
+  - แม่น้ำปิง = 11 ways (แยกท่อน) อยู่ครบ lat 18.43–19.15 — **อย่านึกว่าหลุด** ถ้าจางเกินให้เพิ่ม weight/opacity ที่ `base`
+- ถ้าจะปรับความชัด/สี แก้ที่ฟังก์ชัน `addOtherRivers()` ใน app.js
+- แม่น้ำกวง (body) ก็มี tooltip "แม่น้ำกวง" ตอน hover เช่นกัน
 
 ### ดึงเส้นแม่น้ำใหม่ (ถ้าต้องการ)
 - Overpass bbox กว้างมัก **504** — ใช้ bbox แคบ + ลอง mirror หลายตัว (private.coffee, osm.jp) แบบ background
