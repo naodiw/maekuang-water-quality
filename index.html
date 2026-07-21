@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>แผนที่จุดเก็บตัวอย่างน้ำ · แม่น้ำแม่กวง</title>
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css?v=1" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="map-stage">
+        <div id="map" aria-label="แผนที่จุดเก็บตัวอย่างน้ำ"></div>
+        <div class="legend" aria-label="คำอธิบายสัญลักษณ์">
+          <span><i class="dot dot-kuang"></i>แม่น้ำกวง</span>
+          <span><i class="dot dot-maekha"></i>คลองแม่ข่า</span>
+          <span><i class="dot dot-beforeafter"></i>จุดก่อน-หลังโรงงาน</span>
+        </div>
+      </section>
+
+      <aside class="control-panel" aria-label="แผงข้อมูล">
+        <header>
+          <p class="eyebrow">จุดเก็บตัวอย่างน้ำ</p>
+          <h2>แผนที่แม่น้ำแม่กวง</h2>
+          <p class="source-note">
+            แสดงตำแหน่งจุดเก็บตัวอย่างน้ำจากไฟล์ <strong>พิกัดจุดเก็บน้ำ</strong> · ขั้นถัดไปจะเพิ่มข้อมูลโรงงานรอบแม่น้ำและผลตรวจคุณภาพน้ำ
+        </header>
+
+        <section class="filters" aria-label="ตัวกรอง">
+          <span class="filter-label">กลุ่มจุดเก็บน้ำ</span>
+          <div id="groupFilter" class="segmented-control" role="radiogroup" aria-label="กลุ่มที่แสดง"></div>
+        </section>
+
+        <section class="selected-card" aria-live="polite">
+          <p class="eyebrow">จุดที่เลือก</p>
+          <h3 id="selectedTitle">เลือกจุดบนแผนที่หรือในรายการ</h3>
+          <div id="selectedBody" class="selected-body"></div>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <h3>รายการจุด</h3>
+            <span id="listCount">0 จุด</span>
+          </div>
+          <div id="siteList" class="site-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js?v=1"></script>
+  </body>
+</html>

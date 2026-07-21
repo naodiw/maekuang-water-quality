@@ -1,0 +1,13 @@
+# ไฟล์ต้นทาง Excel — ไม่ต้องขึ้นเว็บ (เว็บใช้แค่ data.json ที่แปลงแล้ว)
+*.xlsx
+*.xls
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+Thumbs.db
+.DS_Store
