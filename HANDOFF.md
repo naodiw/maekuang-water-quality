@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (แสดงแม่กวงเต็มระบบ: ต้นน้ำดอยสะเก็ด → อ่างเก็บน้ำ/เขื่อน → ช่วงล่าง → ปิง + หมุดต้นน้ำ/เขื่อน)
+**อัปเดตล่าสุด:** 2026-07-21 (trace เส้นจริงใต้เขื่อน 23 กม. จาก OSM streams แทนเส้นประ schematic — แม่กวงต่อเนื่องเต็มสาย)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -29,9 +29,8 @@
 | `app.js` | โหลดข้อมูล, แม่น้ำ 4 ชั้น, marker, กรอง, เลือกจุด | ✅ |
 | `styles.css` | สไตล์ + animation การไหล (`.river-flow`) | ✅ |
 | `data.json` | 30 จุด + `factoriesHint` 6 แห่ง | ✅ |
-| `rivers.geojson` | แม่กวง 2 ท่อน: upper (ต้นน้ำ 628จุด) + lower (1015จุด) เด่น + animation | ✅ |
+| `rivers.geojson` | แม่กวง 3 ท่อน: upper (ต้นน้ำ 628จุด) + middle (ใต้เขื่อน 652จุด/23กม.) + lower (1015จุด) เด่น + animation | ✅ |
 | `reservoir.geojson` | polygon อ่างเก็บน้ำแม่กวง (OSM relation 193489) | ✅ |
-| `connectors.geojson` | เส้นประเชื่อมใต้เขื่อน (เขื่อน→ช่วงล่าง) schematic ไม่ animate | ✅ |
 | `rivers_other.geojson` | แม่น้ำอื่น 137 เส้น (ปิง/ขาน/แม่ทา/แม่ริม ฯลฯ) เส้นจาง ไม่ animate | ✅ |
 | `parse_points.py` | แปลง xlsx (DMS→decimal) → data.json | ✅ |
 | `พิกัดจุดเก็บน้ำ.xlsx` | Excel ต้นทาง | ❌ (gitignore) |
@@ -55,8 +54,11 @@
 1. **ต้นน้ำ (ดอยสะเก็ด)** ~19.02°N,99.31°E — OSM way `315124167` (เดิมชื่อ "น้ำแม่กวง" เคยถูกจัดผิดเป็นแม่น้ำอื่น) → ดึงกลับมาเป็น rivers.geojson part=upper
 2. **อ่างเก็บน้ำแม่กวง** (relation 193489) lat 18.924–18.968 → `reservoir.geojson`
 3. **เขื่อนแม่กวงอุดมธารา** (สันเขื่อน `waterway=dam` name=แม่กวง) ~18.926°N,99.115°E → landmark ใน data.json
-4. **ช่วงใต้เขื่อน ~15 กม.**: OSM ไม่มีลำน้ำเดี่ยว มีแต่**เครือข่ายคลองส่งน้ำ/เหมือง** (คลองเหมืองห้า/กาน ฯลฯ) → ใช้เส้นประ schematic `connectors.geojson` เชื่อมเขื่อน→ช่วงล่าง
+4. **ช่วงใต้เขื่อน (part=middle, 23 กม.)**: แม่น้ำไหลต่อเนื่องจริง (Google Maps ยืนยันป้าย "Mae Kuang" ตลอดทาง) — ใน OSM เป็น **stream/canal หลายท่อน ส่วนใหญ่ไม่มีชื่อ** (มีท่อนชื่อ "แม่น้ำกวง" way 144053727 ยืนยันเส้นทาง) ผม trace ด้วย graph search (Dijkstra) จากใต้เขื่อน→จุดเริ่มช่วงล่าง เชื่อมช่วง OSM ขาดด้วย bridge สั้น ๆ
+   ⚠️ เคยเข้าใจผิดว่า "น้ำหายลงคลองส่งน้ำ" แล้วใช้เส้นประ schematic — **ผิด อย่าทำซ้ำ** (`connectors.geojson` ถูกลบแล้ว)
 5. **ช่วงล่าง** 18.80→18.54°N → ลงแม่น้ำปิง (rivers.geojson part=lower)
+
+**วิธี re-trace ช่วง middle** (ถ้าต้องทำใหม่): สคริปต์ `trace_gap.py` (local, ไม่ push) — โหลด waterway ทั้งหมด (river|stream|canal) ใน bbox ใต้เขื่อน, สร้าง graph (node=พิกัด 4 ตำแหน่ง), Dijkstra จากเขื่อน→จุดเริ่ม lower โดย: stream/river cost x1, canal x3, ชื่อมี "กวง" x0.3, bridge ข้ามช่วงขาด ≤400ม. (ใกล้เขื่อน ≤1400ม.) cost x5
 
 landmarks เก็บใน `data.json → landmarks` [{type:source|dam, name, lat, lng}] เรนเดอร์เป็น emoji divIcon (🏔️/🏞️) ใน `addLandmarks()`
 panes zIndex: reservoir 330 < riverOther 340 < connector 345 < river 350

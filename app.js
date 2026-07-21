@@ -35,20 +35,18 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const [data, rivers, otherRivers, reservoir, connectors] = await Promise.all([
+  const [data, rivers, otherRivers, reservoir] = await Promise.all([
     fetch("data.json?v=3").then((r) => r.json()),
-    fetch("rivers.geojson?v=3").then((r) => r.json()).catch(() => null),
+    fetch("rivers.geojson?v=4").then((r) => r.json()).catch(() => null),
     fetch("rivers_other.geojson?v=1").then((r) => r.json()).catch(() => null),
     fetch("reservoir.geojson?v=1").then((r) => r.json()).catch(() => null),
-    fetch("connectors.geojson?v=1").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
   setupMap();
   if (otherRivers) addOtherRivers(otherRivers);   // subtle background rivers
   if (reservoir) addReservoir(reservoir);         // Mae Kuang reservoir (water body)
-  if (connectors) addConnectors(connectors);      // schematic below-dam link
-  if (rivers) addRiver(rivers);                    // prominent Mae Kuang (upper + lower)
+  if (rivers) addRiver(rivers);                    // prominent Mae Kuang (upper + middle + lower)
   addLandmarks();                                  // source + dam markers
   buildFilters();
   addMarkers();
@@ -69,8 +67,6 @@ function setupMap() {
   state.map.getPane("reservoir").style.zIndex = 330;
   state.map.createPane("riverOther");
   state.map.getPane("riverOther").style.zIndex = 340;
-  state.map.createPane("connector");
-  state.map.getPane("connector").style.zIndex = 345;
   state.map.createPane("river");
   state.map.getPane("river").style.zIndex = 350;
 }
@@ -108,19 +104,7 @@ function addReservoir(geojson) {
     .addTo(state.map);
 }
 
-// ---------- Schematic connector below the dam (canal stretch, no animation) ----------
-function addConnectors(geojson) {
-  L.geoJSON(geojson, {
-    pane: "connector",
-    style: { color: "#0ea5e9", weight: 3, opacity: 0.55, dashArray: "3 8", lineCap: "round" },
-    onEachFeature: (f, layer) => {
-      const n = f.properties?.name;
-      if (n) layer.bindTooltip(n, { sticky: true, direction: "top", className: "river-tip" });
-    },
-  }).addTo(state.map);
-}
-
-// ---------- River (prominent Mae Kuang — upper + lower parts) ----------
+// ---------- River (prominent Mae Kuang — upper + middle + lower parts) ----------
 function addRiver(geojson) {
   const lines = geojson.features
     .filter((f) => f.geometry?.type === "LineString")

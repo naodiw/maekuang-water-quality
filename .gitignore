@@ -27,3 +27,6 @@ venv/
 # OS
 Thumbs.db
 .DS_Store
+trace_gap.py
+middle_path.json
+gap.json
