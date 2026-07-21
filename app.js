@@ -10,6 +10,12 @@ const RIVER = {
   flow: "#f0f9ff",      // moving dashes (convey flow direction)
 };
 
+const MAEKHA = {
+  color: "#7c3aed",     // body (matches MK markers)
+  glow: "#a78bfa",      // halo
+  flow: "#f5f3ff",      // moving dashes
+};
+
 const state = {
   points: [],
   landmarks: [],
@@ -35,17 +41,19 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const [data, rivers, otherRivers, reservoir] = await Promise.all([
+  const [data, rivers, otherRivers, reservoir, maekha] = await Promise.all([
     fetch("data.json?v=3").then((r) => r.json()),
     fetch("rivers.geojson?v=4").then((r) => r.json()).catch(() => null),
     fetch("rivers_other.geojson?v=2").then((r) => r.json()).catch(() => null),
     fetch("reservoir.geojson?v=1").then((r) => r.json()).catch(() => null),
+    fetch("maekha.geojson?v=1").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
   setupMap();
   if (otherRivers) addOtherRivers(otherRivers);   // subtle background rivers
   if (reservoir) addReservoir(reservoir);         // Mae Kuang reservoir (water body)
+  if (maekha) addFlowRiver(maekha, MAEKHA, "คลองแม่ข่า", "maekha");  // prominent Mae Kha canal
   if (rivers) addRiver(rivers);                    // prominent Mae Kuang (upper + middle + lower)
   addLandmarks();                                  // source + dam markers
   buildFilters();
@@ -67,6 +75,8 @@ function setupMap() {
   state.map.getPane("reservoir").style.zIndex = 330;
   state.map.createPane("riverOther");
   state.map.getPane("riverOther").style.zIndex = 340;
+  state.map.createPane("maekha");
+  state.map.getPane("maekha").style.zIndex = 348;
   state.map.createPane("river");
   state.map.getPane("river").style.zIndex = 350;
 }
@@ -104,28 +114,34 @@ function addReservoir(geojson) {
     .addTo(state.map);
 }
 
-// ---------- River (prominent Mae Kuang — upper + middle + lower parts) ----------
-function addRiver(geojson) {
+// ---------- Generic prominent flowing waterway (glow + body + animated flow) ----------
+function addFlowRiver(geojson, colors, label, paneName) {
   const lines = geojson.features
     .filter((f) => f.geometry?.type === "LineString")
     .map((f) => f.geometry.coordinates.map(([lng, lat]) => [lat, lng]));
-  if (!lines.length) return;
-  state.river = lines.flat();
-  const pane = { pane: "river", lineCap: "round", lineJoin: "round" };
+  if (!lines.length) return [];
+  const pane = { pane: paneName, lineCap: "round", lineJoin: "round" };
 
   for (const line of lines) {
     // 1) soft outer glow
-    L.polyline(line, { ...pane, color: RIVER.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
+    L.polyline(line, { ...pane, color: colors.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
     // 2) main body (hover shows name)
-    L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 })
-      .bindTooltip("แม่น้ำกวง", { sticky: true, direction: "top", className: "river-tip" })
+    L.polyline(line, { ...pane, color: colors.color, weight: 6, opacity: 0.75 })
+      .bindTooltip(label, { sticky: true, direction: "top", className: "river-tip" })
       .addTo(state.map);
     // 3) animated downstream flow dashes (each part ordered source -> downstream)
     L.polyline(line, {
-      ...pane, color: RIVER.flow, weight: 3, opacity: 0.95,
+      ...pane, color: colors.flow, weight: 3, opacity: 0.95,
       dashArray: "10 20", className: "river-flow",
     }).addTo(state.map);
   }
+  return lines;
+}
+
+// ---------- River (prominent Mae Kuang — upper + middle + lower parts) ----------
+function addRiver(geojson) {
+  const lines = addFlowRiver(geojson, RIVER, "แม่น้ำกวง", "river");
+  state.river = lines.flat();
 }
 
 // ---------- Landmarks: source + dam ----------

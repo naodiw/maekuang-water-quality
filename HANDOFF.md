@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (เย็บแม่น้ำทุกสายที่ขาดเป็นท่อนให้ต่อเนื่อง โดยเฉพาะปิงช่วงสารภี + เอากรอบดำ focus ตอน click ออก)
+**อัปเดตล่าสุด:** 2026-07-21 (ทำคลองแม่ข่าเป็นเส้นเด่นไหล animate สีม่วงแบบเดียวกับแม่กวง)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -31,6 +31,7 @@
 | `data.json` | 30 จุด + `factoriesHint` 6 แห่ง | ✅ |
 | `rivers.geojson` | แม่กวง 3 ท่อน: upper (ต้นน้ำ 628จุด) + middle (ใต้เขื่อน 652จุด/23กม.) + lower (1015จุด) เด่น + animation | ✅ |
 | `reservoir.geojson` | polygon อ่างเก็บน้ำแม่กวง (OSM relation 193489) | ✅ |
+| `maekha.geojson` | คลองแม่ข่า เส้นเดียว 516 จุด เหนือ→ลงปิง เด่นสีม่วง + animation | ✅ |
 | `rivers_other.geojson` | แม่น้ำอื่น 137 เส้น (ปิง/ขาน/แม่ทา/แม่ริม ฯลฯ) เส้นจาง ไม่ animate | ✅ |
 | `parse_points.py` | แปลง xlsx (DMS→decimal) → data.json | ✅ |
 | `พิกัดจุดเก็บน้ำ.xlsx` | Excel ต้นทาง | ❌ (gitignore) |
@@ -62,6 +63,13 @@
 
 landmarks เก็บใน `data.json → landmarks` [{type:source|dam, name, lat, lng}] เรนเดอร์เป็น emoji divIcon (🏔️/🏞️) ใน `addLandmarks()`
 panes zIndex: reservoir 330 < riverOther 340 < connector 345 < river 350
+
+### คลองแม่ข่า (hero ที่ 2)
+- OSM ตั้งชื่อ `คลองแม่ข่า` tag **`waterway=stream`** (ไม่ใช่ canal/river) → query filter ชื่อภาษาไทยตรง ๆ มัก**ว่าง** (regex Thai ผ่าน curl เพี้ยน) ให้ query waterway ทั้งหมดใน bbox รอบจุด MK แล้วกรองชื่อใน python แทน
+- 8 ท่อน 523 จุด ต่อกันสนิท (ไม่ต้อง bridge) → `maekha.geojson` เส้นเดียว 516 จุด เรียง**เหนือ(18.843)→ใต้(18.739 ลงปิง)**
+- เรนเดอร์ด้วย `addFlowRiver(geojson, MAEKHA, "คลองแม่ข่า", "maekha")` — ฟังก์ชัน generic เดียวกับแม่กวง (glow+body+flow animate) สีม่วง #7c3aed เข้ากับหมุด MK
+- pane `maekha` zIndex 348 (ต่ำกว่าแม่กวง 350 นิดเดียว)
+- **หมายเหตุ:** ถ้าจะเพิ่ม hero สายที่ 3 ใช้ `addFlowRiver` ได้เลย + สร้าง pane ใหม่ + สี const ใหม่
 
 ### การเย็บแม่น้ำที่ขาด (stitching) — ทำแล้ว
 - OSM แบ่งแม่น้ำเป็นหลาย way + บางท่วงขาด (ไม่มีชื่อ/ยังไม่ mapped) ทำให้เส้นบนแผนที่ดูขาดเป็นช่วง

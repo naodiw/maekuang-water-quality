@@ -67,6 +67,11 @@ html, body {
   width: 14px; height: 10px; border-radius: 3px; display: inline-block; flex: none;
   background: #7dd3fc; border: 1px solid #38bdf8;
 }
+.river-swatch-maekha {
+  background: linear-gradient(90deg, #a78bfa, #7c3aed);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.18);
+}
+.flow-hint-maekha { color: #6d28d9; }
 .river-swatch-other {
   background: #2f88c2;
   box-shadow: none;
