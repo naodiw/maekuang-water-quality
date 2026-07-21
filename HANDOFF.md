@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21
+**อัปเดตล่าสุด:** 2026-07-21 (เอาลูกศรบอกทิศออก, คืน basemap OSM สดใส — เก็บเส้นประไหลไว้บอกทิศแทน)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -44,7 +44,7 @@
 - **ทิศการไหล = เหนือ→ใต้** (ต้นน้ำ 18.80°N ดอยสะเก็ด → ปลายน้ำ 18.54°N ไหลลงแม่น้ำปิง)
 - geojson เรียงพิกัด **ต้นน้ำ (index 0) → ปลายน้ำ (index สุดท้าย)** — สำคัญมาก
 - Animation: CSS `stroke-dashoffset` ติดลบใน `@keyframes riverFlow` → เส้นประวิ่ง start→end = ตามน้ำ
-- ลูกศร: sample ทุก ~1/16 ของเส้น, หมุนด้วย `atan2(-(Δlat), Δlng·cosLat)` (east=0°, ตามเข็ม)
+  (เส้นประที่ไหลนี้บอกทิศในตัว — **ลูกศร chevron ถูกถอดออกแล้ว** ตาม feedback ผู้ใช้)
 - ถ้าดึงแม่น้ำใหม่/แก้ order → ต้องรักษาลำดับต้นน้ำ→ปลายน้ำ ไม่งั้น animation ไหลกลับทิศ
 
 ### ดึงเส้นแม่น้ำใหม่ (ถ้าต้องการ)
@@ -56,8 +56,8 @@ curl -s --data-urlencode 'data=[out:json][timeout:120];way["waterway"="river"]["
 ```
 
 ### Basemap
-- ใช้ **CARTO light** (`light_all`) แทน OSM มาตรฐาน — สะอาดกว่า เห็นเส้นน้ำชัด
-- (หมายเหตุ sandbox: OSM tiles ถูกบล็อก, CARTO โหลดได้ — แต่ online จริงใช้ได้ทั้งคู่)
+- ใช้ **OSM มาตรฐาน** (`tile.openstreetmap.org`) — ผู้ใช้ต้องการแผนที่สีสดใส (เคยลอง CARTO light แล้วผู้ใช้ไม่ชอบ ให้กลับมา OSM)
+- (หมายเหตุ sandbox: OSM tiles ถูกบล็อกในเบราว์เซอร์ทดสอบของ Claude แต่ online จริง/เครื่องผู้ใช้แสดงปกติ)
 
 ### พิกัดโรงงานที่มีอยู่แล้ว (`data.json → factoriesHint`)
 6 แห่ง ฝังในคำอธิบายจุดก่อน-หลัง: เชียงใหม่โฟรเซ่นฟูดส์, ธนภักดี, สันติภาพ(ฮั่วเพ้ง 1958),

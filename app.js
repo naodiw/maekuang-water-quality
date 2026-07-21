@@ -7,8 +7,7 @@ const GROUP_META = {
 const RIVER = {
   color: "#0ea5e9",     // body
   glow: "#38bdf8",      // halo
-  flow: "#f0f9ff",      // moving dashes
-  arrow: "#0369a1",     // direction chevrons
+  flow: "#f0f9ff",      // moving dashes (convey flow direction)
 };
 
 const state = {
@@ -16,7 +15,6 @@ const state = {
   river: null,          // array of [lat,lng]
   map: null,
   markers: {},
-  arrowLayer: null,
   selected: null,
   filter: "all",
 };
@@ -52,16 +50,14 @@ async function init() {
 function setupMap() {
   state.map = L.map("map", { zoomControl: false }).setView([18.7, 99.0], 11);
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20,
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors",
   }).addTo(state.map);
 
   // dedicated pane for the river — above tiles, below markers
   state.map.createPane("river");
   state.map.getPane("river").style.zIndex = 350;
-  state.map.createPane("arrows");
-  state.map.getPane("arrows").style.zIndex = 360;
 }
 
 function groupColor(group) {
@@ -81,35 +77,11 @@ function addRiver(geojson) {
   // 2) main body
   L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 }).addTo(state.map);
   // 3) animated downstream flow dashes (start -> end = north -> south)
+  //    the moving dashes convey flow direction on their own — no arrow markers
   L.polyline(line, {
     ...pane, color: RIVER.flow, weight: 3, opacity: 0.95,
     dashArray: "10 20", className: "river-flow",
   }).addTo(state.map);
-
-  addFlowArrows(line);
-}
-
-// Directional chevrons pointing downstream, sampled along the river
-function addFlowArrows(line) {
-  if (state.arrowLayer) state.arrowLayer.remove();
-  state.arrowLayer = L.layerGroup([], { pane: "arrows" });
-  const step = Math.max(1, Math.floor(line.length / 16));
-  for (let i = step; i < line.length - 1; i += step) {
-    const [lat, lng] = line[i];
-    const [nlat, nlng] = line[Math.min(i + step, line.length - 1)];
-    const cosLat = Math.cos((lat * Math.PI) / 180);
-    // screen-space clockwise angle from east; north is up (negative y)
-    const deg = Math.atan2(-(nlat - lat), (nlng - lng) * cosLat) * 180 / Math.PI;
-    const icon = L.divIcon({
-      className: "",
-      html: `<div class="flow-arrow" style="transform:rotate(${deg}deg)">
-        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 2 L12 8 L4 14" fill="none"
-        stroke="${RIVER.arrow}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`,
-      iconSize: [16, 16], iconAnchor: [8, 8],
-    });
-    L.marker([lat, lng], { icon, pane: "arrows", interactive: false }).addTo(state.arrowLayer);
-  }
-  state.arrowLayer.addTo(state.map);
 }
 
 // ---------- Filters ----------

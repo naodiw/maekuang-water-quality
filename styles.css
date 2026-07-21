@@ -70,11 +70,6 @@ html, body {
 @keyframes riverFlow {
   to { stroke-dashoffset: -30; }   /* dashes travel start->end = downstream */
 }
-.flow-arrow {
-  width: 16px; height: 16px;
-  filter: drop-shadow(0 0 1px rgba(255,255,255,0.9));
-  opacity: 0.9;
-}
 
 /* ---- Marker ---- */
 .pin {
