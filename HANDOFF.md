@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (เอาลูกศรบอกทิศออก, คืน basemap OSM สดใส — เก็บเส้นประไหลไว้บอกทิศแทน)
+**อัปเดตล่าสุด:** 2026-07-21 (เพิ่มแม่น้ำอื่นในเชียงใหม่/ลำพูนแบบเส้นจาง ไม่มี animation — แม่น้ำกวงยังเด่น)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -29,7 +29,8 @@
 | `app.js` | โหลดข้อมูล, แม่น้ำ 4 ชั้น, marker, กรอง, เลือกจุด | ✅ |
 | `styles.css` | สไตล์ + animation การไหล (`.river-flow`) | ✅ |
 | `data.json` | 30 จุด + `factoriesHint` 6 แห่ง | ✅ |
-| `rivers.geojson` | เส้นแม่น้ำกวง 1015 จุด เรียงต้นน้ำ→ปลายน้ำ | ✅ |
+| `rivers.geojson` | เส้นแม่น้ำกวง 1015 จุด เรียงต้นน้ำ→ปลายน้ำ (เด่น + animation) | ✅ |
+| `rivers_other.geojson` | แม่น้ำอื่น 137 เส้น (ปิง/ขาน/แม่ทา/แม่ริม ฯลฯ) เส้นจาง ไม่ animate | ✅ |
 | `parse_points.py` | แปลง xlsx (DMS→decimal) → data.json | ✅ |
 | `พิกัดจุดเก็บน้ำ.xlsx` | Excel ต้นทาง | ❌ (gitignore) |
 | `overpass.ql` / `osm_raw.json` | ไฟล์ทำงานตอนดึงแม่น้ำ | ❌ (ควร gitignore) |
@@ -47,7 +48,14 @@
   (เส้นประที่ไหลนี้บอกทิศในตัว — **ลูกศร chevron ถูกถอดออกแล้ว** ตาม feedback ผู้ใช้)
 - ถ้าดึงแม่น้ำใหม่/แก้ order → ต้องรักษาลำดับต้นน้ำ→ปลายน้ำ ไม่งั้น animation ไหลกลับทิศ
 
+### แม่น้ำอื่น (background layer)
+- `rivers_other.geojson` = 137 เส้น จาก Overpass `way["waterway"="river"](18.45,98.78,19.15,99.15)`
+- **ตัดชื่อ `แม่น้ำกวง`, `น้ำแม่กวง` ออก** (แสดงเด่นแยกใน rivers.geojson แล้ว)
+- render ใน pane `riverOther` (zIndex 340, ใต้ pane `river` 350): เส้นเดียว สี #6ba6cc weight 1.8 opacity 0.55 **ไม่มี animation** ตาม feedback (ต้องเห็นแต่ไม่เด่นเกิน)
+- ถ้าจะเพิ่ม/ลดความจาง แก้ที่ฟังก์ชัน `addOtherRivers()` ใน app.js
+
 ### ดึงเส้นแม่น้ำใหม่ (ถ้าต้องการ)
+- Overpass bbox กว้างมัก **504** — ใช้ bbox แคบ + ลอง mirror หลายตัว (private.coffee, osm.jp) แบบ background
 ```bash
 # Overpass หลักมัก timeout — รันแบบ background, query เจาะจงชื่อเป๊ะ
 curl -s --data-urlencode 'data=[out:json][timeout:120];way["waterway"="river"]["name"="แม่น้ำกวง"](18.35,98.80,18.95,99.20);out geom;' \

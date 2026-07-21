@@ -4,8 +4,11 @@
 
 # ไฟล์ทำงานตอนดึงเส้นแม่น้ำจาก Overpass (ไม่ต้องขึ้นเว็บ)
 overpass.ql
+overpass_other.ql
 osm_raw.json
+osm_rivers_all.json
 overpass_result.txt
+ov_other_result.txt
 tasks_out.txt
 
 # Python

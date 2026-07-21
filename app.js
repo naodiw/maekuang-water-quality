@@ -34,13 +34,15 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const [data, rivers] = await Promise.all([
+  const [data, rivers, otherRivers] = await Promise.all([
     fetch("data.json?v=2").then((r) => r.json()),
     fetch("rivers.geojson?v=2").then((r) => r.json()).catch(() => null),
+    fetch("rivers_other.geojson?v=1").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   setupMap();
-  if (rivers) addRiver(rivers);
+  if (otherRivers) addOtherRivers(otherRivers);   // subtle background rivers
+  if (rivers) addRiver(rivers);                    // prominent Mae Kuang (on top)
   buildFilters();
   addMarkers();
   render();
@@ -55,7 +57,9 @@ function setupMap() {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(state.map);
 
-  // dedicated pane for the river — above tiles, below markers
+  // panes: other rivers (subtle) sit below the prominent Mae Kuang, both above tiles / below markers
+  state.map.createPane("riverOther");
+  state.map.getPane("riverOther").style.zIndex = 340;
   state.map.createPane("river");
   state.map.getPane("river").style.zIndex = 350;
 }
@@ -64,7 +68,16 @@ function groupColor(group) {
   return (GROUP_META[group] || {}).color || "#697386";
 }
 
-// ---------- River ----------
+// ---------- Other rivers (subtle background, no animation) ----------
+function addOtherRivers(geojson) {
+  L.geoJSON(geojson, {
+    pane: "riverOther",
+    interactive: false,
+    style: { color: "#6ba6cc", weight: 1.8, opacity: 0.55, lineCap: "round", lineJoin: "round" },
+  }).addTo(state.map);
+}
+
+// ---------- River (prominent Mae Kuang) ----------
 function addRiver(geojson) {
   const feat = geojson.features.find((f) => f.geometry?.type === "LineString");
   if (!feat) return;
