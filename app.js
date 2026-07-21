@@ -1,15 +1,24 @@
 const GROUP_META = {
-  kuang:       { label: "แม่น้ำกวง",            color: "#1478a8" },
+  kuang:       { label: "แม่น้ำกวง",            color: "#0ea5e9" },
   maekha:      { label: "คลองแม่ข่า",           color: "#7c3aed" },
   beforeafter: { label: "จุดก่อน-หลังโรงงาน",   color: "#d97706" },
 };
 
+const RIVER = {
+  color: "#0ea5e9",     // body
+  glow: "#38bdf8",      // halo
+  flow: "#f0f9ff",      // moving dashes
+  arrow: "#0369a1",     // direction chevrons
+};
+
 const state = {
   points: [],
+  river: null,          // array of [lat,lng]
   map: null,
-  markers: {},      // code -> L.marker
+  markers: {},
+  arrowLayer: null,
   selected: null,
-  filter: "all",    // "all" | group key
+  filter: "all",
 };
 
 const els = {
@@ -27,9 +36,13 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const data = await fetch("data.json?v=1").then((r) => r.json());
+  const [data, rivers] = await Promise.all([
+    fetch("data.json?v=2").then((r) => r.json()),
+    fetch("rivers.geojson?v=2").then((r) => r.json()).catch(() => null),
+  ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   setupMap();
+  if (rivers) addRiver(rivers);
   buildFilters();
   addMarkers();
   render();
@@ -39,49 +52,95 @@ async function init() {
 function setupMap() {
   state.map = L.map("map", { zoomControl: false }).setView([18.7, 99.0], 11);
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors",
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    maxZoom: 20,
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
   }).addTo(state.map);
+
+  // dedicated pane for the river — above tiles, below markers
+  state.map.createPane("river");
+  state.map.getPane("river").style.zIndex = 350;
+  state.map.createPane("arrows");
+  state.map.getPane("arrows").style.zIndex = 360;
 }
 
 function groupColor(group) {
   return (GROUP_META[group] || {}).color || "#697386";
 }
 
+// ---------- River ----------
+function addRiver(geojson) {
+  const feat = geojson.features.find((f) => f.geometry?.type === "LineString");
+  if (!feat) return;
+  const line = feat.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  state.river = line;
+  const pane = { pane: "river", lineCap: "round", lineJoin: "round" };
+
+  // 1) soft outer glow
+  L.polyline(line, { ...pane, color: RIVER.glow, weight: 18, opacity: 0.18 }).addTo(state.map);
+  // 2) main body
+  L.polyline(line, { ...pane, color: RIVER.color, weight: 6, opacity: 0.75 }).addTo(state.map);
+  // 3) animated downstream flow dashes (start -> end = north -> south)
+  L.polyline(line, {
+    ...pane, color: RIVER.flow, weight: 3, opacity: 0.95,
+    dashArray: "10 20", className: "river-flow",
+  }).addTo(state.map);
+
+  addFlowArrows(line);
+}
+
+// Directional chevrons pointing downstream, sampled along the river
+function addFlowArrows(line) {
+  if (state.arrowLayer) state.arrowLayer.remove();
+  state.arrowLayer = L.layerGroup([], { pane: "arrows" });
+  const step = Math.max(1, Math.floor(line.length / 16));
+  for (let i = step; i < line.length - 1; i += step) {
+    const [lat, lng] = line[i];
+    const [nlat, nlng] = line[Math.min(i + step, line.length - 1)];
+    const cosLat = Math.cos((lat * Math.PI) / 180);
+    // screen-space clockwise angle from east; north is up (negative y)
+    const deg = Math.atan2(-(nlat - lat), (nlng - lng) * cosLat) * 180 / Math.PI;
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="flow-arrow" style="transform:rotate(${deg}deg)">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 2 L12 8 L4 14" fill="none"
+        stroke="${RIVER.arrow}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`,
+      iconSize: [16, 16], iconAnchor: [8, 8],
+    });
+    L.marker([lat, lng], { icon, pane: "arrows", interactive: false }).addTo(state.arrowLayer);
+  }
+  state.arrowLayer.addTo(state.map);
+}
+
+// ---------- Filters ----------
 function buildFilters() {
   const counts = {};
   for (const p of state.points) counts[p.group] = (counts[p.group] || 0) + 1;
-
   const options = [{ key: "all", label: "ทั้งหมด", count: state.points.length }];
   for (const key of Object.keys(GROUP_META)) {
     if (counts[key]) options.push({ key, label: GROUP_META[key].label, count: counts[key] });
   }
-
   els.groupFilter.innerHTML = options.map((o) => `
     <button type="button" class="segmented-button ${o.key === state.filter ? "is-active" : ""}"
       role="radio" aria-checked="${o.key === state.filter}" data-filter="${o.key}">
       ${escapeHtml(o.label)}<span class="cnt">${o.count}</span>
     </button>`).join("");
-
   els.groupFilter.querySelectorAll("[data-filter]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.filter = btn.dataset.filter;
-      buildFilters();
-      render();
-      fitToVisible();
+      buildFilters(); render(); fitToVisible();
     });
   });
 }
 
+// ---------- Markers ----------
 function addMarkers() {
   for (const p of state.points) {
     const marker = L.marker([p.latitude, p.longitude], {
       icon: L.divIcon({
         className: "",
-        html: `<div class="pin" style="background:${groupColor(p.group)}"></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        html: `<div class="pin pin-${p.group}" style="background:${groupColor(p.group)}"></div>`,
+        iconSize: [18, 18], iconAnchor: [9, 9],
       }),
     });
     marker.bindTooltip(`${p.code} · ${p.name}`, { direction: "top", offset: [0, -8] });
@@ -96,19 +155,13 @@ function isVisible(p) {
 }
 
 function render() {
-  // markers visibility
   for (const p of state.points) {
     const m = state.markers[p.code];
-    if (isVisible(p)) {
-      if (!state.map.hasLayer(m)) m.addTo(state.map);
-    } else if (state.map.hasLayer(m)) {
-      m.remove();
-    }
+    if (isVisible(p)) { if (!state.map.hasLayer(m)) m.addTo(state.map); }
+    else if (state.map.hasLayer(m)) m.remove();
   }
-
   const visible = state.points.filter(isVisible);
   els.listCount.textContent = `${visible.length} จุด`;
-
   els.siteList.innerHTML = visible.map((p) => `
     <button type="button" class="site-item ${p.code === state.selected ? "is-active" : ""}" data-code="${p.code}">
       <span class="sdot" style="background:${groupColor(p.group)}"></span>
@@ -117,7 +170,6 @@ function render() {
         <span class="sname">${escapeHtml(p.name)}</span>
       </span>
     </button>`).join("");
-
   els.siteList.querySelectorAll("[data-code]").forEach((btn) => {
     btn.addEventListener("click", () => selectPoint(btn.dataset.code));
   });
@@ -127,13 +179,10 @@ function selectPoint(code) {
   state.selected = code;
   const p = state.points.find((x) => x.code === code);
   if (!p) return;
-
-  // marker highlight
   for (const [c, m] of Object.entries(state.markers)) {
     const pin = m.getElement()?.querySelector(".pin");
     if (pin) pin.classList.toggle("is-active", c === code);
   }
-
   els.selectedTitle.textContent = `${p.code} · ${p.groupLabel}`;
   els.selectedBody.innerHTML = `
     <p>${escapeHtml(p.name)}</p>
@@ -141,16 +190,19 @@ function selectPoint(code) {
     <div class="kv"><b>พิกัด</b><span>${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span></div>
     <div class="kv"><b>DMS</b><span>${escapeHtml(p.dms || "")}</span></div>
     <div class="kv"><b></b><a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">เปิดใน Google Maps ↗</a></div>`;
-
   render();
   state.map.setView([p.latitude, p.longitude], Math.max(state.map.getZoom(), 14), { animate: true });
 }
 
 function fitToVisible() {
   const visible = state.points.filter(isVisible);
-  if (!visible.length) return;
-  const bounds = L.latLngBounds(visible.map((p) => [p.latitude, p.longitude]));
-  state.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+  const pts = visible.map((p) => [p.latitude, p.longitude]);
+  // include river extent when showing all / แม่น้ำกวง
+  if (state.river && (state.filter === "all" || state.filter === "kuang")) {
+    for (const c of state.river) pts.push(c);
+  }
+  if (!pts.length) return;
+  state.map.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 14 });
 }
 
 init();

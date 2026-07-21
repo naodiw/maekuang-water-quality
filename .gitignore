@@ -2,6 +2,12 @@
 *.xlsx
 *.xls
 
+# ไฟล์ทำงานตอนดึงเส้นแม่น้ำจาก Overpass (ไม่ต้องขึ้นเว็บ)
+overpass.ql
+osm_raw.json
+overpass_result.txt
+tasks_out.txt
+
 # Python
 __pycache__/
 *.pyc

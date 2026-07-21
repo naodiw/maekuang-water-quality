@@ -55,6 +55,26 @@ html, body {
 .dot-kuang { background: var(--kuang); }
 .dot-maekha { background: var(--maekha); }
 .dot-beforeafter { background: var(--beforeafter); }
+.river-swatch {
+  width: 20px; height: 5px; border-radius: 3px;
+  display: inline-block; flex: none;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+  box-shadow: 0 0 0 3px rgba(56,189,248,0.18);
+}
+.flow-hint { color: #0369a1; font-style: normal; font-size: 12px; margin-left: 2px; }
+
+/* ---- River flow animation ---- */
+.river-flow {
+  animation: riverFlow 1.1s linear infinite;
+}
+@keyframes riverFlow {
+  to { stroke-dashoffset: -30; }   /* dashes travel start->end = downstream */
+}
+.flow-arrow {
+  width: 16px; height: 16px;
+  filter: drop-shadow(0 0 1px rgba(255,255,255,0.9));
+  opacity: 0.9;
+}
 
 /* ---- Marker ---- */
 .pin {
@@ -63,7 +83,9 @@ html, body {
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   transition: transform 0.12s ease;
 }
-.pin.is-active { transform: scale(1.4); box-shadow: 0 0 0 4px rgba(20,120,168,0.3), 0 1px 4px rgba(0,0,0,0.4); }
+/* emphasise Mae Kuang sampling points */
+.pin-kuang { box-shadow: 0 0 0 3px rgba(14,165,233,0.28), 0 1px 4px rgba(0,0,0,0.4); }
+.pin.is-active { transform: scale(1.45); box-shadow: 0 0 0 5px rgba(14,165,233,0.35), 0 1px 4px rgba(0,0,0,0.4); z-index: 999; }
 
 /* ---- Control panel ---- */
 .control-panel {
