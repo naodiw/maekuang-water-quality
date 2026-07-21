@@ -60,6 +60,16 @@ async function init() {
   addMarkers();
   render();
   fitToVisible();
+  setupLegend();
+}
+
+// Legend: expanded on desktop, collapsible (default closed) on mobile
+function setupLegend() {
+  const legend = document.getElementById("legend");
+  if (!legend) return;
+  const sync = () => { legend.open = window.innerWidth > 820; };
+  sync();
+  window.addEventListener("resize", sync);
 }
 
 function setupMap() {

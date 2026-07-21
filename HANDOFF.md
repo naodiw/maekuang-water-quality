@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (ทำคลองแม่ข่าเป็นเส้นเด่นไหล animate สีม่วงแบบเดียวกับแม่กวง)
+**อัปเดตล่าสุด:** 2026-07-21 (มือถือ: legend ยุบได้ default-collapsed กันบังแผนที่ — เดสก์ท็อปเปิดเต็มเหมือนเดิม)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -80,6 +80,10 @@ panes zIndex: reservoir 330 < riverOther 340 < connector 345 < river 350
 
 ### UI
 - **ห้ามมีกรอบดำตอน click เส้น/หมุด** — จัดการแล้วใน styles.css (`.leaflet-container :focus { outline:none }`) ผู้ใช้ไม่ชอบ
+- **Responsive/มือถือ**: `<= 820px` → layout คอลัมน์เดียว (map 55vh + panel ล่าง). legend เป็น `<details id="legend">`:
+  - มือถือ: แสดง summary "คำอธิบายสัญลักษณ์" ยุบไว้ default (ไม่งั้นบังแผนที่ ~40%), แตะขยาย, ตอนเปิด max-height 40vh scroll ได้
+  - เดสก์ท็อป (>820px): `setupLegend()` เซ็ต `legend.open=true` + CSS ซ่อน summary → เปิดเต็มเหมือนเดิม
+  - resync ตอน resize. ทดสอบแล้วทั้ง 375px และ 1280px
 
 ### แม่น้ำอื่น (background layer)
 - `rivers_other.geojson` = 137 เส้น จาก Overpass `way["waterway"="river"](18.45,98.78,19.15,99.15)`
