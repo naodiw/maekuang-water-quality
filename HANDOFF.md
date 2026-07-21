@@ -2,7 +2,7 @@
 
 > เอกสารส่งต่องาน อัปเดตทุกครั้งที่มีการเปลี่ยนแปลง — อ่านไฟล์นี้ก่อนทำงานต่อ
 
-**อัปเดตล่าสุด:** 2026-07-21 (trace เส้นจริงใต้เขื่อน 23 กม. จาก OSM streams แทนเส้นประ schematic — แม่กวงต่อเนื่องเต็มสาย)
+**อัปเดตล่าสุด:** 2026-07-21 (เย็บแม่น้ำทุกสายที่ขาดเป็นท่อนให้ต่อเนื่อง โดยเฉพาะปิงช่วงสารภี + เอากรอบดำ focus ตอน click ออก)
 **Live:** https://naodiw.github.io/maekuang-water-quality/
 **Repo:** https://github.com/naodiw/maekuang-water-quality (branch `master`, public, GitHub Pages)
 
@@ -62,6 +62,16 @@
 
 landmarks เก็บใน `data.json → landmarks` [{type:source|dam, name, lat, lng}] เรนเดอร์เป็น emoji divIcon (🏔️/🏞️) ใน `addLandmarks()`
 panes zIndex: reservoir 330 < riverOther 340 < connector 345 < river 350
+
+### การเย็บแม่น้ำที่ขาด (stitching) — ทำแล้ว
+- OSM แบ่งแม่น้ำเป็นหลาย way + บางท่วงขาด (ไม่มีชื่อ/ยังไม่ mapped) ทำให้เส้นบนแผนที่ดูขาดเป็นช่วง
+- สคริปต์ `stitch_rivers.py` (local, ไม่ push): จัดกลุ่มตามชื่อ → **ดูดเส้นไม่มีชื่อที่ปลายทั้งสองแตะปลายท่อนของแม่น้ำชื่อเดียวกัน (≤300ม.)** → merge ท่อนที่ปลายห่างกัน ≤2.5กม. เรียงทิศให้ถูก
+- ผลลัพธ์: ทุกสายหลักเป็นเส้นเดียว — **ปิง 1918 จุด เต็มสาย 18.43–19.15** (เดิมขาดช่วงสารภี ~2.5กม. จริง ๆ มีเส้นไม่มีชื่อ 65 จุดพาดอยู่ ถูกดูดเข้าปิงแล้ว), ขาน/แม่ริม/แม่คาว/แม่ออน/ปูคา/แม่ร้อง/ห้วยโจ้ ฯลฯ ต่อครบ
+- ท่อนสั้นที่เหลือของปิง 3 อัน = แขนงคู่ขนาน (braid) ของจริง ไม่ใช่รอยขาด
+- 137 features → 94 features ใน rivers_other.geojson
+
+### UI
+- **ห้ามมีกรอบดำตอน click เส้น/หมุด** — จัดการแล้วใน styles.css (`.leaflet-container :focus { outline:none }`) ผู้ใช้ไม่ชอบ
 
 ### แม่น้ำอื่น (background layer)
 - `rivers_other.geojson` = 137 เส้น จาก Overpass `way["waterway"="river"](18.45,98.78,19.15,99.15)`

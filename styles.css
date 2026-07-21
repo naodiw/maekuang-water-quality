@@ -85,6 +85,12 @@ html, body {
 }
 .river-tip.leaflet-tooltip-top::before { border-top-color: #0e2a3d; }
 
+/* no black focus rectangle when clicking rivers/markers */
+.leaflet-container path.leaflet-interactive:focus,
+.leaflet-container :focus {
+  outline: none !important;
+}
+
 /* ---- River flow animation ---- */
 .river-flow {
   animation: riverFlow 1.1s linear infinite;

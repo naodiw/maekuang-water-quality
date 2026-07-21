@@ -38,7 +38,7 @@ async function init() {
   const [data, rivers, otherRivers, reservoir] = await Promise.all([
     fetch("data.json?v=3").then((r) => r.json()),
     fetch("rivers.geojson?v=4").then((r) => r.json()).catch(() => null),
-    fetch("rivers_other.geojson?v=1").then((r) => r.json()).catch(() => null),
+    fetch("rivers_other.geojson?v=2").then((r) => r.json()).catch(() => null),
     fetch("reservoir.geojson?v=1").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
