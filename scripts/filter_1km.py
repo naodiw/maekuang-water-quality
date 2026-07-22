@@ -65,16 +65,22 @@ for r in facs:
     dm = dist_to_lines(lat, lng, maekha)
     d, near = (dk, 'kuang') if dk <= dm else (dm, 'maekha')
     if d <= MAX_M:
-        addr = ' '.join(x for x in [r['addrno'], ('ม.'+r['moo']) if r['moo'] and r['moo']!='nan' else '',
-                                    ('ถ.'+r['road']) if r['road'] and r['road']!='nan' else '',
-                                    'ต.'+r['tambon'], 'อ.'+r['district'], 'จ.'+r['province'], r['zip']]
-                        if x and x != 'nan')
+        zipc = numclean(r['zip'])
+        JUNK = ('', 'nan', '-', '0')
+        ap = []
+        if r['addrno'] not in JUNK: ap.append(r['addrno'])
+        if r['moo'] not in JUNK: ap.append('ม.'+r['moo'])
+        if r['road'] not in JUNK: ap.append('ถ.'+r['road'])
+        if r['tambon'] not in JUNK: ap.append('ต.'+r['tambon'])
+        ap += ['อ.'+r['district'], 'จ.'+r['province']]
+        if zipc: ap.append(zipc)
+        addr = ' '.join(ap)
         nm = r['name'] if r['name'] not in ('', '-', 'nan') else (r.get('gpsName') or r['operator'])
         out.append({
             'fid': r['fid'], 'oldreg': r['oldreg'], 'name': nm,
             'operator': r['operator'], 'business': r['business'], 'address': addr,
             'district': r['district'], 'province': r['province'],
-            'phone': '' if r['phone'] == 'nan' else r['phone'], 'factype': r['factype'],
+            'phone': '' if r['phone'] == 'nan' else r['phone'], 'factype': numclean(r['factype']),
             'capital': numclean(r['capital']), 'workers': numclean(r['workers']), 'hp': numclean(r['hp']),
             'nearRiver': near, 'distanceM': round(d, 1),
             'latitude': round(r['latitude'], 6), 'longitude': round(r['longitude'], 6),

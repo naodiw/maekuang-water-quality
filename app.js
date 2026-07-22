@@ -53,7 +53,7 @@ async function init() {
     fetch("reservoir.geojson?v=1").then((r) => r.json()).catch(() => null),
     fetch("maekha.geojson?v=1").then((r) => r.json()).catch(() => null),
     fetch("river_facts.json?v=1").then((r) => r.json()).catch(() => null),
-    fetch("factories.json?v=1").then((r) => r.json()).catch(() => null),
+    fetch("factories.json?v=2").then((r) => r.json()).catch(() => null),
   ]);
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
@@ -149,7 +149,8 @@ function buildRiverPopup(fact) {
   const stats = (fact.stats || [])
     .map(([k, v]) => `<div class="rpop-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`)
     .join("");
-  const src = (state.facts && state.facts.meta && state.facts.meta.source) || "";
+  const metaSrc = (state.facts && state.facts.meta && state.facts.meta.source) || "";
+  const src = fact.source !== undefined ? fact.source : metaSrc;  // per-card override
   const hasDetail = !!(fact.blurb || stats || fact.note);
   const body = `
       ${fact.blurb ? `<p class="rpop-blurb">${escapeHtml(fact.blurb)}</p>` : ""}
@@ -280,6 +281,7 @@ function buildFactoryPopup(f) {
       [`ห่าง${riverLabel}`, `${(f.distanceM / 1000).toFixed(2)} กม.`],
     ],
     note: "",
+    source: "กรมโรงงานอุตสาหกรรม (DIW)",
   };
   return buildRiverPopup(fact);
 }
@@ -336,6 +338,7 @@ function buildMonitoredPopup(f) {
     title: f.name,
     subtitle: `น้ำถูกเก็บตัวอย่างก่อน–หลังไหลผ่านโรงงานนี้`,
     accent: "#d97706",
+    source: f.source && f.source.indexOf("ประมาณ") >= 0 ? "กรมโรงงานอุตสาหกรรม (พิกัดโดยประมาณ)" : "กรมโรงงานอุตสาหกรรม (DIW)",
     blurb: f.source && f.source.indexOf("ประมาณ") >= 0 ? "⚠ ตำแหน่งโดยประมาณ (ไม่พบพิกัดจริงในฐาน DIW)" : "",
     stats,
     note: "",

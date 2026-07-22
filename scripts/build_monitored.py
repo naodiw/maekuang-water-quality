@@ -53,9 +53,14 @@ for key, disp, cb, ca, river in MON:
     entry = {"name": disp, "river": river, "beforeCode": cb, "afterCode": ca}
     if rec:
         lat, lng = rec["latitude"], rec["longitude"]
-        addr = " ".join(x for x in [rec["addrno"], ("ม."+rec["moo"]) if rec["moo"] and rec["moo"]!="nan" else "",
-                                    ("ถ."+rec["road"]) if rec["road"] and rec["road"]!="nan" else "",
-                                    "ต."+rec["tambon"], "อ."+rec["district"], "จ."+rec["province"]] if x and x!="nan")
+        JUNK = ("", "nan", "-", "0")
+        ap = []
+        if rec["addrno"] not in JUNK: ap.append(rec["addrno"])
+        if rec["moo"] not in JUNK: ap.append("ม."+rec["moo"])
+        if rec["road"] not in JUNK: ap.append("ถ."+rec["road"])
+        if rec["tambon"] not in JUNK: ap.append("ต."+rec["tambon"])
+        ap += ["อ."+rec["district"], "จ."+rec["province"]]
+        addr = " ".join(ap)
         entry.update({
             "name": rec["name"] if rec["name"] not in ("", "-", "nan") else disp,
             "oldreg": rec["oldreg"], "fid": rec["fid"], "operator": rec["operator"],
