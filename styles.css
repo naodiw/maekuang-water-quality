@@ -304,6 +304,8 @@ html, body {
   border-left: 1px solid var(--line);
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;          /* grid item: อย่าขยายตามเนื้อหา nowrap (กันตกขอบ) */
   display: flex;
   flex-direction: column;
   gap: 18px;
