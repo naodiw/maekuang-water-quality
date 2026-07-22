@@ -261,7 +261,28 @@ function addRiver(geojson) {
 }
 
 // ---------- DIW factories (≤1 km from แม่น้ำกวง / คลองแม่ข่า) ----------
-const FACTORY_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V11l5 3V11l5 3V8l5 3V5h2v16H3z"/><rect x="5" y="16" width="2" height="3"/><rect x="10" y="16" width="2" height="3"/><rect x="15" y="16" width="2" height="3"/></svg>`;
+// Isometric factory marker — 3 shades per face (top light, right base, left dark),
+// coloured per type via CSS vars --cl/--c/--cd. Chimney reuses the same shades.
+const FACTORY_SVG = `<svg viewBox="0 0 48 48" class="iso-fac" aria-hidden="true">
+  <polygon class="iso-left"  points="14,7.5 19,10 19,20 14,17.5"/>
+  <polygon class="iso-right" points="19,10 24,7.5 24,17.5 19,20"/>
+  <polygon class="iso-top"   points="19,5 24,7.5 19,10 14,7.5"/>
+  <polygon class="iso-left"  points="6,24 24,34 24,44 6,34"/>
+  <polygon class="iso-right" points="24,34 42,24 42,34 24,44"/>
+  <polygon class="iso-top"   points="24,14 42,24 24,34 6,24"/>
+  <polygon class="iso-win" points="29,30.5 33,32.5 33,35 29,33"/>
+  <polygon class="iso-win" points="35,27.5 39,29.5 39,32 35,30"/>
+</svg>`;
+
+const FACTORY_COLORS = {
+  kuang:     { c: "#1478a8", cl: "#6fb0cf", cd: "#0e5b7e" },
+  maekha:    { c: "#7c3aed", cl: "#a482f0", cd: "#571fae" },
+  monitored: { c: "#d97706", cl: "#f0a94a", cd: "#a85a03" },
+};
+function isoStyle(k) {
+  const x = FACTORY_COLORS[k] || FACTORY_COLORS.kuang;
+  return `--c:${x.c};--cl:${x.cl};--cd:${x.cd}`;
+}
 
 function buildFactoryPopup(f) {
   const riverLabel = f.nearRiver === "maekha" ? "คลองแม่ข่า" : "แม่น้ำกวง";
@@ -289,13 +310,13 @@ function buildFactoryPopup(f) {
 function addFactories() {
   for (const f of state.factories) {
     if (!f.latitude || !f.longitude) continue;
-    const cls = f.nearRiver === "maekha" ? "fm-maekha" : "";
+    const kind = f.nearRiver === "maekha" ? "maekha" : "kuang";
     const m = L.marker([f.latitude, f.longitude], {
       pane: "factories",
       icon: L.divIcon({
         className: "",
-        html: `<div class="factory-pin ${cls}">${FACTORY_SVG}</div>`,
-        iconSize: [22, 22], iconAnchor: [11, 11],
+        html: `<div class="factory-pin" style="${isoStyle(kind)}">${FACTORY_SVG}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 29],
       }),
     });
     m.bindTooltip(`${f.name || f.operator} · ห่างน้ำ ${(f.distanceM / 1000).toFixed(2)} กม.`,
@@ -353,8 +374,8 @@ function addMonitoredFactories() {
       zIndexOffset: 300,
       icon: L.divIcon({
         className: "",
-        html: `<div class="factory-pin fm-monitored">${FACTORY_SVG}</div>`,
-        iconSize: [26, 26], iconAnchor: [13, 13],
+        html: `<div class="factory-pin fm-monitored" style="${isoStyle("monitored")}">${FACTORY_SVG}</div>`,
+        iconSize: [40, 40], iconAnchor: [20, 36],
       }),
     });
     m.bindTooltip(`${f.name} · ตรวจก่อน-หลัง (${f.beforeCode}/${f.afterCode})`,
