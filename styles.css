@@ -241,6 +241,9 @@ html, body {
   width: 100%; height: 100%;
   display: block;
   filter: drop-shadow(0 1.5px 1px rgba(0,0,0,0.3));
+  transform: scale(var(--fscale, 1));   /* ย่อตาม zoom (ตั้งค่าที่ #map) */
+  transform-origin: 50% 90%;            /* ย่อเข้าหาฐานอาคาร = จุดปัก */
+  transition: transform 0.12s ease;
 }
 .factory-pin .iso-fac { width: 100%; height: 100%; display: block; overflow: visible; }
 .iso-fac .iso-top   { fill: var(--cl, #6fb0cf); }   /* หลังคา/บนสุด (สว่าง) */
@@ -257,6 +260,9 @@ html, body {
   position: relative;
 }
 .fm-monitored-swatch { border-color: #d97706; background: #fffbeb; box-shadow: 0 0 0 2px rgba(217,119,6,0.28); }
+/* legend: isometric factory icon (matches map markers) */
+.legend-iso { width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.legend-iso .iso-fac { width: 22px; height: 22px; display: block; overflow: visible; }
 
 /* factory layer toggle — chip styled like the group filters */
 .filter-label-layer { display: block; margin-top: 12px; }

@@ -73,6 +73,9 @@ async function init() {
   render();
   fitToVisible();
   setupLegend();
+  fillLegendIcons();                               // isometric factory icons in legend
+  state.map.on("zoomend", updateFactoryScale);     // shrink factory markers when zoomed out
+  updateFactoryScale();
 }
 
 // Legend: expanded on desktop, collapsible (default closed) on mobile
@@ -282,6 +285,28 @@ const FACTORY_COLORS = {
 function isoStyle(k) {
   const x = FACTORY_COLORS[k] || FACTORY_COLORS.kuang;
   return `--c:${x.c};--cl:${x.cl};--cd:${x.cd}`;
+}
+
+// Factory markers shrink when zoomed out (via CSS var --fscale on #map)
+function factoryScaleForZoom(z) {
+  if (z >= 14) return 1;
+  if (z >= 13) return 0.88;
+  if (z >= 12) return 0.74;
+  if (z >= 11) return 0.62;
+  if (z >= 10) return 0.52;
+  return 0.44;
+}
+function updateFactoryScale() {
+  const el = document.getElementById("map");
+  if (el && state.map) el.style.setProperty("--fscale", factoryScaleForZoom(state.map.getZoom()));
+}
+
+// Fill legend factory swatches with the isometric icon (matches map markers)
+function fillLegendIcons() {
+  document.querySelectorAll(".legend-iso[data-fico]").forEach((el) => {
+    el.setAttribute("style", isoStyle(el.dataset.fico));
+    el.innerHTML = FACTORY_SVG;
+  });
 }
 
 function buildFactoryPopup(f) {
