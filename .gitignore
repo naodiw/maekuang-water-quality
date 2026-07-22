@@ -34,3 +34,8 @@ stitch_rivers.py
 
 maekha.json
 mk_all.json
+
+# ไฟล์ทำงานตอนดึงโรงงาน DIW (intermediate — เว็บใช้แค่ factories.json)
+scripts/diw_xls/
+scripts/diw_gps_raw.json
+scripts/factories_1km.json

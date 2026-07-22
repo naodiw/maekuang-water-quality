@@ -108,6 +108,120 @@ html, body {
 }
 .river-tip.leaflet-tooltip-top::before { border-top-color: #0e2a3d; }
 
+/* ---- River fact popup (click) ---- */
+.river-popup .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  padding: 0;
+  box-shadow: 0 6px 28px rgba(16, 32, 48, 0.18);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.river-popup .leaflet-popup-content {
+  margin: 0;
+  line-height: 1.5;
+}
+.river-popup .leaflet-popup-tip { box-shadow: 0 6px 28px rgba(16, 32, 48, 0.18); }
+.river-popup a.leaflet-popup-close-button {
+  color: #fff;
+  top: 8px;
+  right: 8px;
+  font-size: 18px;
+  opacity: 0.85;
+}
+.river-popup a.leaflet-popup-close-button:hover { opacity: 1; }
+
+/* collapsed = compact header only; expands wider + reveals body on open.
+   Driven by JS class `.is-open` (not :has / UA <details> hiding — both flaky). */
+.rpop { font-family: inherit; color: var(--ink); width: 208px; }
+.rpop.is-open { width: 250px; }
+.rpop * { word-break: normal; overflow-wrap: anywhere; }
+.rpop-body { display: none; }
+.rpop.is-open .rpop-body { display: block; }
+
+.rpop-more { }
+.rpop-summary {
+  display: block;
+  cursor: pointer;
+  list-style: none;
+  outline: none;
+}
+.rpop-summary::-webkit-details-marker { display: none; }
+.rpop-toggle {
+  display: block;
+  padding: 7px 14px;
+  font-size: 0;                         /* hide literal text; label via ::after */
+  font-weight: 600;
+  text-align: center;
+  color: var(--accent, #1478a8);
+  background: #f5f8fb;
+  border-top: 1px solid var(--line);
+}
+.rpop-toggle::after { font-size: 11.5px; content: "ดูข้อมูลเพิ่มเติม  ▾"; }
+.rpop-more[open] .rpop-toggle::after { content: "ย่อข้อมูล  ▴"; }
+.rpop-summary:hover .rpop-toggle { background: #eef3f8; }
+
+.rpop-head {
+  background: var(--accent, #1478a8);
+  color: #fff;
+  padding: 12px 14px 11px;
+}
+.rpop-kind {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.rpop-title { margin: 0; font-size: 17px; font-weight: 700; }
+.rpop-sub { margin: 2px 0 0; font-size: 12px; opacity: 0.9; }
+.rpop-blurb {
+  margin: 0;
+  padding: 11px 14px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.rpop-stats {
+  margin: 0;
+  padding: 6px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.rpop-row {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+.rpop-row:first-child { border-top: none; }
+.rpop-row dt { margin: 0; font-size: 12px; color: var(--muted); flex: none; }
+.rpop-row dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+}
+.rpop-note {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--ink);
+  background: #f5f8fb;
+  border-top: 1px solid var(--line);
+}
+.rpop-src {
+  margin: 0;
+  padding: 7px 14px 11px;
+  font-size: 10.5px;
+  color: #9aa7b4;
+}
+
 /* no black focus rectangle when clicking rivers/markers */
 .leaflet-container path.leaflet-interactive:focus,
 .leaflet-container :focus {
@@ -121,6 +235,44 @@ html, body {
 @keyframes riverFlow {
   to { stroke-dashoffset: -30; }   /* dashes travel start->end = downstream */
 }
+
+/* ---- DIW factory markers ---- */
+.factory-pin {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: #eff6fb;
+  border: 2px solid #1478a8;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+.factory-pin svg { width: 14px; height: 14px; fill: #1478a8; }
+.factory-pin.fm-maekha { border-color: #7c3aed; background: #f5f3ff; }
+.factory-pin.fm-maekha svg { fill: #7c3aed; }
+/* โรงงานที่จุดเก็บน้ำก่อน-หลังคร่อมอยู่ — เด่นกว่า */
+.factory-pin.fm-monitored {
+  width: 26px; height: 26px;
+  border-color: #d97706; background: #fffbeb;
+  box-shadow: 0 0 0 3px rgba(217,119,6,0.28), 0 1px 5px rgba(0,0,0,0.4);
+}
+.factory-pin.fm-monitored svg { width: 16px; height: 16px; fill: #d97706; }
+.factory-swatch {
+  width: 14px; height: 14px; border-radius: 4px; display: inline-block; flex: none;
+  background: #eff6fb; border: 2px solid #1478a8;
+  position: relative;
+}
+.fm-monitored-swatch { border-color: #d97706; background: #fffbeb; box-shadow: 0 0 0 2px rgba(217,119,6,0.28); }
+
+/* factory layer toggle — chip styled like the group filters */
+.filter-label-layer { display: block; margin-top: 12px; }
+.filter-label-layer + .segmented-control { margin-top: 8px; }
+.chip-toggle { gap: 7px; }
+.chip-toggle .chip-ico {
+  width: 11px; height: 11px; border-radius: 3px; flex: none;
+  border: 2px solid #1478a8; background: #eff6fb;
+}
+.chip-toggle.is-active .chip-ico { border-color: #fff; background: rgba(255,255,255,0.4); }
+.chip-toggle:not(.is-active) { opacity: 0.7; }
+.chip-toggle:not(.is-active) .cnt { color: var(--muted); }
 
 /* ---- Landmarks (source / dam) ---- */
 .landmark {
