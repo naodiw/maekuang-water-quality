@@ -381,9 +381,10 @@ html, body {
 .site-item:hover { background: #f3f6f9; }
 .site-item.is-active { background: #eaf4f9; border-color: #bfe0ef; }
 .site-item .sdot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.site-item .stext { min-width: 0; }
-.site-item .scode { font-weight: 700; font-size: 13px; }
+.site-item .stext { min-width: 0; flex: 1; display: block; }
+.site-item .scode { display: block; font-weight: 700; font-size: 13px; }
 .site-item .sname {
+  display: block;
   font-size: 12px; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
