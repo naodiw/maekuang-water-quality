@@ -54,6 +54,9 @@ const state = {
   markers: {},
   selected: null,
   filter: "all",
+  months: [],           // ["2025-10", ...] รอบเก็บตัวอย่าง (รายเดือน)
+  monthIdx: -1,         // รอบที่เลือกบน timeline
+  playTimer: null,
 };
 
 const els = {
@@ -82,6 +85,8 @@ async function init() {
     fetch("results.json?v=2").then((r) => r.json()).catch(() => null),
   ]);
   if (results) { state.results = results.results || {}; state.units = results.units || {}; }
+  state.months = [...new Set(Object.values(state.results).flat().map((r) => r.date.slice(0, 7)))].sort();
+  state.monthIdx = state.months.length - 1;
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
   state.facts = facts;
@@ -97,6 +102,7 @@ async function init() {
   addLandmarks();                                  // source + dam markers
   buildFilters();
   addMarkers();
+  setupTimeline();
   render();
   fitToVisible();
   setupLegend();
@@ -475,7 +481,7 @@ function buildFilters() {
   els.groupFilter.querySelectorAll("[data-filter]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.filter = btn.dataset.filter;
-      buildFilters(); render(); fitToVisible();
+      buildFilters(); render(); updateTimelineUI(); fitToVisible();
     });
   });
 }
@@ -483,18 +489,113 @@ function buildFilters() {
 // ---------- Markers ----------
 function addMarkers() {
   for (const p of state.points) {
-    const marker = L.marker([p.latitude, p.longitude], {
-      icon: L.divIcon({
-        className: "",
-        html: `<div class="pin pin-${p.group}" style="background:${groupColor(p.group)}"></div>`,
-        iconSize: [18, 18], iconAnchor: [9, 9],
-      }),
-    });
+    const marker = L.marker([p.latitude, p.longitude], { icon: pinIcon(p) });
     marker.bindTooltip(`${p.code} · ${p.name}`, { direction: "top", offset: [0, -8] });
     marker.on("click", () => selectPoint(p.code));
     marker.addTo(state.map);
     state.markers[p.code] = marker;
   }
+}
+
+function pinIcon(p) {
+  const st = pointStatus(p.code);
+  const active = p.code === state.selected ? " is-active" : "";
+  return L.divIcon({
+    className: "",
+    html: `<div class="pin pin-${p.group} st-${st}${active}" style="background:${groupColor(p.group)}"></div>`,
+    iconSize: [18, 18], iconAnchor: [9, 9],
+  });
+}
+
+function refreshPins() {
+  for (const p of state.points) state.markers[p.code]?.setIcon(pinIcon(p));
+}
+
+// ---------- Timeline (แถบเลื่อนตามรอบเก็บตัวอย่าง) ----------
+const TH_MONTH = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+function fmtMonth(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  return `${TH_MONTH[m - 1]} ${y + 543}`;
+}
+
+function currentMonth() { return state.months[state.monthIdx] || null; }
+
+function rowForMonth(code, ym = currentMonth()) {
+  if (!ym) return null;
+  return (state.results[code] || []).find((r) => r.date.startsWith(ym)) || null;
+}
+
+function rowFails(r) {
+  return ["pH", "DO", "BOD"].some((k) => passes(k, r[k]) === false);
+}
+
+// ok | bad | none (ไม่มีการเก็บในรอบนี้)
+function pointStatus(code) {
+  const r = rowForMonth(code);
+  if (!r) return "none";
+  return rowFails(r) ? "bad" : "ok";
+}
+
+function setupTimeline() {
+  const box = document.getElementById("timeline");
+  if (!box) return;
+  if (!state.months.length) { box.remove(); return; }
+  const range = box.querySelector("#tlRange");
+  range.max = state.months.length - 1;
+  range.value = state.monthIdx;
+  box.querySelector("#tlTicks").innerHTML = state.months.map((ym, i) => {
+    const hasBA = state.points.some((p) => p.group === "beforeafter" && rowForMonth(p.code, ym));
+    return `<button type="button" class="tl-tick" data-i="${i}" title="${fmtMonth(ym)}">
+      <span>${TH_MONTH[Number(ym.slice(5)) - 1]}</span>${hasBA ? '<i class="tl-ba" title="มีผลจุดก่อน-หลังโรงงาน"></i>' : ""}
+    </button>`;
+  }).join("");
+  range.addEventListener("input", () => { stopPlay(); setMonth(Number(range.value)); });
+  box.querySelectorAll(".tl-tick").forEach((b) =>
+    b.addEventListener("click", () => { stopPlay(); setMonth(Number(b.dataset.i)); }));
+  box.querySelector("#tlPlay").addEventListener("click", () => (state.playTimer ? stopPlay() : startPlay()));
+  updateTimelineUI();
+}
+
+function setMonth(i) {
+  state.monthIdx = Math.max(0, Math.min(state.months.length - 1, i));
+  updateTimelineUI();
+  refreshPins();
+  render();
+  if (state.selected) renderSelected();
+}
+
+function startPlay() {
+  if (state.monthIdx >= state.months.length - 1) setMonth(0);
+  const b = document.getElementById("tlPlay");
+  b.classList.add("is-playing");
+  b.setAttribute("aria-label", "หยุด");
+  state.playTimer = setInterval(() => {
+    if (state.monthIdx >= state.months.length - 1) return stopPlay();
+    setMonth(state.monthIdx + 1);
+  }, 1300);
+}
+
+function stopPlay() {
+  clearInterval(state.playTimer);
+  state.playTimer = null;
+  const b = document.getElementById("tlPlay");
+  if (b) { b.classList.remove("is-playing"); b.setAttribute("aria-label", "เล่นต่อเนื่อง"); }
+}
+
+function updateTimelineUI() {
+  const box = document.getElementById("timeline");
+  if (!box || !state.months.length) return;
+  const ym = currentMonth();
+  box.querySelector("#tlRange").value = state.monthIdx;
+  box.querySelectorAll(".tl-tick").forEach((b) => b.classList.toggle("is-active", Number(b.dataset.i) === state.monthIdx));
+  const pts = state.points.filter((p) => isVisible(p) && rowForMonth(p.code));
+  const bad = pts.filter((p) => pointStatus(p.code) === "bad").length;
+  const dates = [...new Set(pts.map((p) => rowForMonth(p.code).date))].sort().map(fmtDate);
+  box.querySelector("#tlLabel").textContent = `รอบ ${fmtMonth(ym)}`;
+  box.querySelector("#tlDates").textContent = dates.length ? `เก็บ ${dates.join(", ")}` : "กลุ่มนี้ไม่ได้เก็บในรอบนี้";
+  box.querySelector("#tlStat").innerHTML = pts.length
+    ? `<b class="tl-bad">${bad}</b> ไม่ผ่าน · <b class="tl-ok">${pts.length - bad}</b> ผ่าน`
+    : "";
 }
 
 function isVisible(p) {
@@ -512,6 +613,7 @@ function render() {
   els.siteList.innerHTML = visible.map((p) => `
     <button type="button" class="site-item ${p.code === state.selected ? "is-active" : ""}" data-code="${p.code}">
       <span class="sdot" style="background:${groupColor(p.group)}"></span>
+      <span class="sstat st-${pointStatus(p.code)}"></span>
       <span class="stext">
         <span class="scode">${escapeHtml(p.code)}</span>
         <span class="sname">${escapeHtml(p.name)}</span>
@@ -526,10 +628,15 @@ function selectPoint(code) {
   state.selected = code;
   const p = state.points.find((x) => x.code === code);
   if (!p) return;
-  for (const [c, m] of Object.entries(state.markers)) {
-    const pin = m.getElement()?.querySelector(".pin");
-    if (pin) pin.classList.toggle("is-active", c === code);
-  }
+  refreshPins();
+  renderSelected();
+  render();
+  state.map.setView([p.latitude, p.longitude], Math.max(state.map.getZoom(), 14), { animate: true });
+}
+
+function renderSelected() {
+  const p = state.points.find((x) => x.code === state.selected);
+  if (!p) return;
   els.selectedTitle.textContent = `${p.code} · ${p.groupLabel}`;
   els.selectedBody.innerHTML = `
     <p>${escapeHtml(p.name)}</p>
@@ -538,8 +645,6 @@ function selectPoint(code) {
     <div class="kv"><b>DMS</b><span>${escapeHtml(p.dms || "")}</span></div>
     <div class="kv"><b></b><a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">เปิดใน Google Maps ↗</a></div>
     ${resultsHtml(p.code)}`;
-  render();
-  state.map.setView([p.latitude, p.longitude], Math.max(state.map.getZoom(), 14), { animate: true });
 }
 
 // ---------- ผลตรวจคุณภาพน้ำ ----------
@@ -582,8 +687,11 @@ function cell(param, v) {
 function resultsHtml(code) {
   const rows = state.results[code];
   if (!rows || !rows.length) return "";
-  const latest = rows[rows.length - 1];
-  const fails = rows.filter((r) => ["pH", "DO", "BOD"].some((k) => passes(k, r[k]) === false)).length;
+  const ym = currentMonth();
+  const cur = ym ? rowForMonth(code, ym) : rows[rows.length - 1];
+  // ถ้ารอบนี้ไม่มีการเก็บ แสดงรอบก่อนหน้าที่ใกล้ที่สุด (หรือรอบแรก)
+  const latest = cur || rows.filter((r) => r.date.slice(0, 7) < ym).pop() || rows[0];
+  const fails = rows.filter(rowFails).length;
   const tileKeys = ["pH", "DO", "BOD", "COD", "SS", "Turb", "TDS"];
   tileKeys.push(latest.TKN != null ? "TKN" : latest["Cl-"] != null ? "Cl-" : "Temp");
   const tiles = tileKeys.map((k) => {
@@ -595,13 +703,13 @@ function resultsHtml(code) {
     </div>`;
   }).join("");
   const hist = rows.slice().reverse().map((r) => `
-    <tr><td>${fmtDate(r.date)}</td>${cell("pH", r.pH)}${cell("DO", r.DO)}${cell("BOD", r.BOD)}${cell("COD", r.COD)}${cell("SS", r.SS)}${cell("Turb", r.Turb)}</tr>`).join("");
+    <tr class="${r === latest ? "is-cur" : ""}"><td>${fmtDate(r.date)}</td>${cell("pH", r.pH)}${cell("DO", r.DO)}${cell("BOD", r.BOD)}${cell("COD", r.COD)}${cell("SS", r.SS)}${cell("Turb", r.Turb)}</tr>`).join("");
   return `
     <div class="results">
       <div class="results-head">
-        <b>ผลตรวจล่าสุด</b><span>${fmtDate(latest.date)}</span>
+        <b>${cur ? `ผลตรวจรอบ ${fmtMonth(ym)}` : "รอบนี้ไม่ได้เก็บ"}</b><span>${cur ? "" : "แสดงรอบ "}${fmtDate(latest.date)}</span>
       </div>
-      <div class="rtiles">${tiles}</div>
+      <div class="rtiles ${cur ? "" : "is-stale"}">${tiles}</div>
       <p class="std-note">เทียบ${STANDARD.label}: pH ${STANDARD.pH.text} · DO ${STANDARD.DO.text} · BOD ${STANDARD.BOD.text} mg/L
         — ไม่ผ่าน ${fails} จาก ${rows.length} รอบ</p>
       ${pairHtml(code)}
@@ -629,7 +737,7 @@ function pairHtml(code) {
       const nb = numOf(b[k]), na = numOf(a[k]);
       // แย่ลง = DO ลด หรือค่าอื่นเพิ่ม (เกิน 20%)
       const worse = nb != null && na != null && (k === "DO" ? na < nb * 0.8 : na > nb * 1.2 && na - nb > 1);
-      return `<tr>${k === keys[0] ? `<td rowspan="${keys.length}" class="pdate">${fmtDate(b.date)}</td>` : ""}
+      return `<tr class="${b.date.startsWith(currentMonth() || "x") ? "is-cur" : ""}">${k === keys[0] ? `<td rowspan="${keys.length}" class="pdate">${fmtDate(b.date)}</td>` : ""}
         <td>${PARAM_LABEL[k] || k}</td><td>${escapeHtml(fmtVal(b[k]))}</td>
         <td class="${worse ? "bad" : ""}">${escapeHtml(fmtVal(a[k]))}</td></tr>`;
     }).join("");

@@ -6,12 +6,24 @@
     <title>แผนที่จุดเก็บตัวอย่างน้ำ · แม่น้ำแม่กวง</title>
     <link rel="preconnect" href="https://unpkg.com" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=23" />
+    <link rel="stylesheet" href="styles.css?v=24" />
   </head>
   <body>
     <main class="app-shell">
       <section class="map-stage">
         <div id="map" aria-label="แผนที่จุดเก็บตัวอย่างน้ำ"></div>
+        <div class="timeline" id="timeline" role="group" aria-label="เลือกรอบเก็บตัวอย่าง">
+          <div class="tl-head">
+            <button type="button" class="tl-play" id="tlPlay" aria-label="เล่นต่อเนื่อง"><span class="tl-ico"></span></button>
+            <div class="tl-title">
+              <b id="tlLabel"></b>
+              <span id="tlDates"></span>
+            </div>
+            <span class="tl-stat" id="tlStat"></span>
+          </div>
+          <input type="range" id="tlRange" min="0" max="0" step="1" value="0" aria-label="รอบเก็บตัวอย่าง" />
+          <div class="tl-ticks" id="tlTicks"></div>
+        </div>
         <details class="legend" id="legend" aria-label="คำอธิบายสัญลักษณ์">
           <summary class="legend-summary">คำอธิบายสัญลักษณ์</summary>
           <div class="legend-items">
@@ -24,6 +36,7 @@
             <span><i class="dot dot-kuang"></i>จุดเก็บน้ำ · แม่น้ำกวง</span>
             <span><i class="dot dot-maekha"></i>จุดเก็บน้ำ · แม่ข่า</span>
             <span><i class="dot dot-beforeafter"></i>จุดก่อน-หลังโรงงาน</span>
+            <span><i class="dot dot-st st-ok"></i>ผ่าน · <i class="dot dot-st st-bad"></i>ไม่ผ่าน · <i class="dot dot-st st-none"></i>ไม่ได้เก็บรอบนี้</span>
           </div>
         </details>
       </section>
@@ -68,6 +81,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="app.js?v=23"></script>
+    <script src="app.js?v=24"></script>
   </body>
 </html>
