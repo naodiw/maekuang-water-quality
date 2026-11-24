@@ -151,9 +151,16 @@ async function init() {
 function setupLegend() {
   const legend = document.getElementById("legend");
   if (!legend) return;
-  const sync = () => { legend.open = window.innerWidth > 820; };
+  // เปลี่ยนสถานะเฉพาะตอนข้าม breakpoint — มือถือยิง resize ตอนแถบ URL ยุบ/ขยาย
+  let wide = null;
+  const sync = () => {
+    const w = window.innerWidth > 820;
+    if (w !== wide) { wide = w; legend.open = w; }
+  };
   sync();
   window.addEventListener("resize", sync);
+  // มือถือ: แตะแผนที่เพื่อปิด legend
+  state.map?.on("click", () => { if (!wide) legend.open = false; });
 }
 
 function setupMap() {
