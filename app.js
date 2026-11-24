@@ -854,7 +854,7 @@ const PAIR_PARAMS = ["DO", "BOD", "COD", "SS", "Turb", "Cond", "TDS", "Cl-", "pH
 const SEV = {
   hi:     { color: "#A11D17", ink: "#fff",    label: "แย่ลงชัด" },
   mid:    { color: "#F5A65B", ink: "#3D1405", label: "แย่ลง" },
-  same:   { color: "#94A3B8", ink: "#fff",    label: "ใกล้เคียง" },
+  same:   { color: "#5B6B7F", ink: "#fff",    label: "ใกล้เคียง" },
   better: { color: "#155E8A", ink: "#fff",    label: "ดีขึ้น" },
 };
 
@@ -918,7 +918,7 @@ function pairCardHtml(f, pair, rr, compact) {
   const mon = `${TH_MONTH[Number(sel.b.date.slice(5, 7)) - 1]} ${String(Number(sel.b.date.slice(0, 4)) + 543).slice(2)}`;
   if (compact) {
     const cells = items.map((x) => `<i style="background:${SEV[x.sv.level].color}" title="${x.lab} ${x.sv.text}"></i>`).join("");
-    return `<div class="pcm pcm-compact ${exact ? "" : "is-stale"}" style="border-color:${SEV[worst].color}">${cells}</div>`;
+    return `<div class="pcm pcm-compact ${exact ? "" : "is-stale"}" style="border-color:${SEV[worst].color}"><b>${escapeHtml(name)}</b><span class="pcm-cells">${cells}</span></div>`;
   }
   const bars = items.map((x) => {
     const max = Math.max(x.nb, x.na) || 1;
