@@ -567,3 +567,5 @@ html, body {
 /* ป้ายรอบวางตามตำแหน่งจริงบนแถบ */
 .tl-ticks { position: relative; height: 26px; margin: 0; display: block; }
 .tl-ticks .tl-tick { position: absolute; top: 0; transform: translateX(-50%); flex: none; padding: 2px 2px; white-space: nowrap; }
+.timeline.is-few .tl-tick:first-child { left: 0 !important; transform: none; }
+.timeline.is-few .tl-tick:last-child { left: auto !important; right: 0; transform: none; }
