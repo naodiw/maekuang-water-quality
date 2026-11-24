@@ -606,13 +606,14 @@ function buildTicks() {
   const range = box.querySelector("#tlRange");
   range.max = Math.max(state.months.length - 1, 0);
   range.disabled = state.months.length < 2;
-  const few = state.months.length <= 6;     // รอบน้อย → แสดงวันที่เก็บจริงบนแถบ
+  const few = state.months.length <= 6;     // รอบน้อย → ป้ายเดือนพร้อมปี
   box.classList.toggle("is-few", few);
   box.querySelector("#tlTicks").innerHTML = state.months.map((ym, i) => {
     const hasBA = state.filter === "all" &&
       state.points.some((p) => p.group === "beforeafter" && rowForMonth(p.code, ym));
-    const d = roundDates(ym)[0];
-    const label = few && d ? fmtDate(d) : TH_MONTH[Number(ym.slice(5)) - 1];
+    // ป้ายเป็นเดือนเสมอ — รอบน้อย (เช่น ก่อน-หลัง 3 รอบ) ใส่ปีกำกับด้วย
+    const mon = TH_MONTH[Number(ym.slice(5)) - 1];
+    const label = few ? `${mon} ${String(Number(ym.slice(0, 4)) + 543).slice(2)}` : mon;
     // วางป้ายตรงตำแหน่งปุ่มเลื่อน (thumb กว้าง ~16px)
     const f = state.months.length > 1 ? i / (state.months.length - 1) : 0.5;
     return `<button type="button" class="tl-tick" data-i="${i}" title="${fmtMonth(ym)}"
