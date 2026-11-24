@@ -846,14 +846,17 @@ function pairHtml(code) {
     const xb = (nb / max) * 100, xa = (na / max) * 100;
     const c = SEV[sv.level];
     const lo = Math.min(xb, xa), w = Math.abs(xa - xb);
+    const vcol = sv.level === "same" ? "var(--ink)" : sv.level === "mid" ? "#b45309" : c.color;
     return `<div class="db-row" title="${PARAM_LABEL[k] || k}: ก่อน ${fmtVal(b)} → หลัง ${fmtVal(a)} ${state.units[k] || ""}">
       <span class="db-lab">${PARAM_LABEL[k] || k}<small>${escapeHtml(state.units[k] || "")}</small></span>
       <span class="db-track">
         <i class="db-line" style="left:${lo}%;width:${w}%;background:${c.color}"></i>
         <i class="db-dot db-before" style="left:${xb}%"></i>
         <i class="db-dot db-after" style="left:${xa}%;background:${c.color}"></i>
-        <em class="db-v db-vb" style="left:${xb}%">${escapeHtml(fmtVal(b))}</em>
-        <em class="db-v db-va" style="left:${xa}%;color:${sv.level === "same" ? "var(--muted)" : c.color === SEV.mid.color ? "#b45309" : c.color}">${escapeHtml(fmtVal(a))}</em>
+        ${w < 16
+          ? `<em class="db-v db-vc" style="left:${Math.min(Math.max((xa + xb) / 2, 18), 82)}%">${escapeHtml(fmtVal(b))} → <b style="color:${vcol}">${escapeHtml(fmtVal(a))}</b></em>`
+          : `<em class="db-v db-vb" style="left:${xb}%">${escapeHtml(fmtVal(b))}</em>
+        <em class="db-v db-va" style="left:${xa}%;color:${vcol}">${escapeHtml(fmtVal(a))}</em>`}
       </span>
       <span class="db-chg" style="background:${c.color};color:${c.ink}">${sv.text}</span>
     </div>`;
