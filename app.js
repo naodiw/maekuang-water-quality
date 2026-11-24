@@ -665,7 +665,17 @@ function selectPoint(code) {
   state.map.setView([p.latitude, p.longitude], Math.max(state.map.getZoom(), 14), { animate: true });
 }
 
+function bindPairTabs() {
+  if (els.selectedBody._pairBound) return;
+  els.selectedBody._pairBound = true;
+  els.selectedBody.addEventListener("click", (e) => {
+    const t = e.target.closest(".ptab");
+    if (t && Number(t.dataset.month) >= 0) { stopPlay(); setMonth(Number(t.dataset.month)); }
+  });
+}
+
 function renderSelected() {
+  bindPairTabs();
   const p = state.points.find((x) => x.code === state.selected);
   if (!p) return;
   els.selectedTitle.textContent = `${p.code} · ${p.groupLabel}`;
@@ -747,13 +757,13 @@ function resultsHtml(code) {
 
   return `
     <div class="results">
+      ${pairHtml(code)}
       ${yearHtml}
       <div class="results-head">
         <b>${cur ? `รอบ ${fmtMonth(ym)}` : "รอบนี้ไม่ได้เก็บ"}</b>
         <span>${cur ? "" : "แสดงรอบ "}${fmtDate(latest.date)} ${classBadge(sc)}</span>
       </div>
       <div class="rtiles ${cur ? "" : "is-stale"}">${tiles}</div>
-      ${pairHtml(code)}
       <details class="history">
         <summary>ผลย้อนหลัง ${rows.length} ครั้ง</summary>
         <div class="table-wrap"><table>
@@ -767,34 +777,105 @@ function resultsHtml(code) {
     </div>`;
 }
 
+// ---------- ก่อน → หลังโรงงาน: กราฟ dumbbell รายพารามิเตอร์ ----------
+const PAIR_PARAMS = ["DO", "BOD", "COD", "SS", "Turb", "Cond", "TDS", "Cl-", "pH"];
+const SEV = {
+  hi:     { color: "#A11D17", ink: "#fff",    label: "แย่ลงชัด" },
+  mid:    { color: "#F5A65B", ink: "#3D1405", label: "แย่ลง" },
+  same:   { color: "#94A3B8", ink: "#fff",    label: "ใกล้เคียง" },
+  better: { color: "#155E8A", ink: "#fff",    label: "ดีขึ้น" },
+};
+
+// เกณฑ์เดียวกับสไลด์: แย่ลงชัด = เพิ่ม ≥2 เท่า หรือ DO ลด ≥2 · แย่ลง = 1.5–2 เท่า หรือ DO ลด 1–2
+function pairSeverity(k, b, a) {
+  const nb = numOf(b), na = numOf(a);
+  if (nb == null || na == null) return null;
+  if (k === "DO") {
+    const d = na - nb;
+    const level = d <= -2 ? "hi" : d <= -1 ? "mid" : d >= 1 ? "better" : "same";
+    return { level, text: `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(d).toFixed(1)}` };
+  }
+  if (k === "pH") {
+    const d = na - nb;
+    return { level: Math.abs(d) >= 1 ? "mid" : "same", text: `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(d).toFixed(1)}` };
+  }
+  if (typeof b === "object" && typeof a === "object") return { level: "same", text: "ต่ำกว่าค่าที่วัดได้ทั้งคู่" };
+  if (nb <= 0) return null;
+  const r = na / nb;
+  const level = r >= 2 ? "hi" : r >= 1.5 ? "mid" : r <= 1 / 1.5 ? "better" : "same";
+  return { level, text: `×${r >= 10 ? r.toFixed(0) : r.toFixed(1)}` };
+}
+
+function pairRounds(pair) {
+  const B = state.results[pair.before] || [], A = state.results[pair.after] || [];
+  return B.map((b) => ({ b, a: A.find((x) => x.date === b.date) })).filter((x) => x.a);
+}
+
+function factoryForPair(pair) {
+  return (state.monitored || []).find((f) => f.beforeCode === pair.before || f.afterCode === pair.after) || null;
+}
+
 function pairHtml(code) {
   const p = state.points.find((x) => x.code === code);
   if (!p || p.group !== "beforeafter") return "";
   const pair = pairOf(code);
-  const B = state.results[pair.before], A = state.results[pair.after];
-  if (!B || !A) return "";
-  const keys = ["DO", "BOD", "COD", "SS", "Cond", "TDS"];
-  const body = B.map((b) => {
-    const a = A.find((x) => x.date === b.date);
-    if (!a) return "";
-    return keys.map((k) => {
-      const nb = numOf(b[k]), na = numOf(a[k]);
-      // แย่ลง = DO ลด หรือค่าอื่นเพิ่ม (เกิน 20%)
-      const worse = nb != null && na != null && (k === "DO" ? na < nb * 0.8 : na > nb * 1.2 && na - nb > 1);
-      return `<tr class="${b.date.startsWith(currentMonth() || "x") ? "is-cur" : ""}">${k === keys[0] ? `<td rowspan="${keys.length}" class="pdate">${fmtDate(b.date)}</td>` : ""}
-        <td>${PARAM_LABEL[k] || k}</td><td>${escapeHtml(fmtVal(b[k]))}</td>
-        <td class="${worse ? "bad" : ""}">${escapeHtml(fmtVal(a[k]))}</td></tr>`;
-    }).join("");
-  }).reverse().join("");
+  const rounds = pairRounds(pair);
+  if (!rounds.length) return "";
+  const ym = currentMonth() || "";
+  // รอบที่แสดง = ตาม timeline ถ้ามี ไม่งั้นรอบก่อนหน้าที่ใกล้สุด หรือรอบแรก
+  const sel = rounds.find((r) => r.b.date.startsWith(ym))
+    || rounds.filter((r) => r.b.date.slice(0, 7) < ym).pop() || rounds[0];
+
+  const sevOf = (r) => PAIR_PARAMS.map((k) => pairSeverity(k, r.b[k], r.a[k])).filter(Boolean);
+  const tabs = rounds.map((r) => {
+    const sv = sevOf(r);
+    const hi = sv.filter((x) => x.level === "hi").length, mid = sv.filter((x) => x.level === "mid").length;
+    const idx = state.months.indexOf(r.b.date.slice(0, 7));
+    return `<button type="button" class="ptab ${r === sel ? "is-active" : ""}" data-month="${idx}">
+      <b>${fmtDate(r.b.date)}</b>
+      <span>${hi ? `<i style="background:${SEV.hi.color}">${hi}</i>` : ""}${mid ? `<i style="background:${SEV.mid.color};color:${SEV.mid.ink}">${mid}</i>` : ""}${!hi && !mid ? `<i style="background:${SEV.same.color}">–</i>` : ""}</span>
+    </button>`;
+  }).join("");
+
+  const rows = PAIR_PARAMS.map((k) => {
+    const b = sel.b[k], a = sel.a[k];
+    const sv = pairSeverity(k, b, a);
+    if (!sv) return "";
+    const nb = numOf(b), na = numOf(a);
+    const max = Math.max(nb, na) * 1.12 || 1;
+    const xb = (nb / max) * 100, xa = (na / max) * 100;
+    const c = SEV[sv.level];
+    const lo = Math.min(xb, xa), w = Math.abs(xa - xb);
+    return `<div class="db-row" title="${PARAM_LABEL[k] || k}: ก่อน ${fmtVal(b)} → หลัง ${fmtVal(a)} ${state.units[k] || ""}">
+      <span class="db-lab">${PARAM_LABEL[k] || k}<small>${escapeHtml(state.units[k] || "")}</small></span>
+      <span class="db-track">
+        <i class="db-line" style="left:${lo}%;width:${w}%;background:${c.color}"></i>
+        <i class="db-dot db-before" style="left:${xb}%"></i>
+        <i class="db-dot db-after" style="left:${xa}%;background:${c.color}"></i>
+        <em class="db-v db-vb" style="left:${xb}%">${escapeHtml(fmtVal(b))}</em>
+        <em class="db-v db-va" style="left:${xa}%;color:${sv.level === "same" ? "var(--muted)" : c.color === SEV.mid.color ? "#b45309" : c.color}">${escapeHtml(fmtVal(a))}</em>
+      </span>
+      <span class="db-chg" style="background:${c.color};color:${c.ink}">${sv.text}</span>
+    </div>`;
+  }).join("");
+
+  const sv = sevOf(sel);
+  const count = (l) => sv.filter((x) => x.level === l).length;
+  const f = factoryForPair(pair);
   return `
-    <details class="history pair" open>
-      <summary>เทียบก่อน ${pair.before} → หลัง ${pair.after} โรงงาน</summary>
-      <div class="table-wrap"><table>
-        <thead><tr><th>รอบ</th><th></th><th>ก่อน</th><th>หลัง</th></tr></thead>
-        <tbody>${body}</tbody>
-      </table></div>
-      <p class="std-note">สีแดง = หลังโรงงานแย่ลงชัดเจน (DO ลด &gt;20% หรือค่าอื่นเพิ่ม &gt;20%)</p>
-    </details>`;
+    <div class="pairviz">
+      <div class="pv-head">
+        <b>ก่อน ${pair.before} → หลัง ${pair.after}</b>
+        ${f ? `<span>${escapeHtml(f.name)}${f.river ? ` · ${escapeHtml(f.river)}` : ""}</span>` : ""}
+      </div>
+      <div class="ptabs">${tabs}</div>
+      <div class="pv-sum">${["hi", "mid", "better", "same"].filter((l) => count(l)).map((l) =>
+        `<span style="background:${SEV[l].color};color:${SEV[l].ink}">${SEV[l].label} ${count(l)}</span>`).join("")}</div>
+      <div class="db-legend"><span><i class="db-dot db-before"></i>ก่อนโรงงาน</span><span><i class="db-dot db-after" style="background:${SEV.hi.color}"></i>หลังโรงงาน</span><span class="db-legend-r">เปลี่ยนแปลง</span></div>
+      <div class="db">${rows}</div>
+      <p class="std-note">×เท่า = หลัง ÷ ก่อน · DO/pH = หลัง − ก่อน · แดง = เพิ่ม ≥2 เท่า หรือ DO ลด ≥2 mg/L ·
+        ส้ม = 1.5–2 เท่า หรือ DO ลด 1–2 · น้ำเงิน = ดีขึ้น · แต่ละแถวใช้สเกลของตัวเอง · ค่า "&lt;" ใช้ค่าขีดจำกัด</p>
+    </div>`;
 }
 
 function fitToVisible() {
