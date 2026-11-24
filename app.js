@@ -799,7 +799,7 @@ function pairSeverity(k, b, a) {
     const d = na - nb;
     return { level: Math.abs(d) >= 1 ? "mid" : "same", text: `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(d).toFixed(1)}` };
   }
-  if (typeof b === "object" && typeof a === "object") return { level: "same", text: "ต่ำกว่าค่าที่วัดได้ทั้งคู่" };
+  if (typeof b === "object" && typeof a === "object") return { level: "same", text: "<LOQ" };
   if (nb <= 0) return null;
   const r = na / nb;
   const level = r >= 2 ? "hi" : r >= 1.5 ? "mid" : r <= 1 / 1.5 ? "better" : "same";
@@ -877,7 +877,7 @@ function pairHtml(code) {
       <div class="db-legend"><span><i class="db-dot db-before"></i>ก่อนโรงงาน</span><span><i class="db-dot db-after" style="background:${SEV.hi.color}"></i>หลังโรงงาน</span><span class="db-legend-r">เปลี่ยนแปลง</span></div>
       <div class="db">${rows}</div>
       <p class="std-note">×เท่า = หลัง ÷ ก่อน · DO/pH = หลัง − ก่อน · แดง = เพิ่ม ≥2 เท่า หรือ DO ลด ≥2 mg/L ·
-        ส้ม = 1.5–2 เท่า หรือ DO ลด 1–2 · น้ำเงิน = ดีขึ้น · แต่ละแถวใช้สเกลของตัวเอง · ค่า "&lt;" ใช้ค่าขีดจำกัด</p>
+        ส้ม = 1.5–2 เท่า หรือ DO ลด 1–2 · น้ำเงิน = ดีขึ้น · แต่ละแถวใช้สเกลของตัวเอง · ค่า "&lt;" ใช้ค่าขีดจำกัด · &lt;LOQ = ต่ำกว่าค่าที่วัดได้ทั้งก่อนและหลัง</p>
     </div>`;
 }
 
