@@ -613,7 +613,10 @@ function buildTicks() {
       state.points.some((p) => p.group === "beforeafter" && rowForMonth(p.code, ym));
     const d = roundDates(ym)[0];
     const label = few && d ? fmtDate(d) : TH_MONTH[Number(ym.slice(5)) - 1];
-    return `<button type="button" class="tl-tick" data-i="${i}" title="${fmtMonth(ym)}">
+    // วางป้ายตรงตำแหน่งปุ่มเลื่อน (thumb กว้าง ~16px)
+    const f = state.months.length > 1 ? i / (state.months.length - 1) : 0.5;
+    return `<button type="button" class="tl-tick" data-i="${i}" title="${fmtMonth(ym)}"
+      style="left:calc(${(f * 100).toFixed(3)}% + ${(8 - 16 * f).toFixed(2)}px)">
       <span>${label}</span>${hasBA ? '<i class="tl-ba" title="มีผลจุดก่อน-หลังโรงงาน"></i>' : ""}
     </button>`;
   }).join("");
