@@ -405,3 +405,28 @@ html, body {
     overflow-y: auto;
   }
 }
+
+/* ---- ผลตรวจคุณภาพน้ำ ---- */
+.results { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--ink); }
+.results-head { display: flex; justify-content: space-between; align-items: baseline; }
+.results-head span { font-size: 12px; color: var(--muted); }
+.rtiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.rtile {
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 6px; display: flex; flex-direction: column; line-height: 1.25;
+}
+.rtile .rlabel { font-size: 11px; color: var(--muted); }
+.rtile .rval { font-size: 16px; font-weight: 700; }
+.rtile .runit { font-size: 10px; color: var(--muted); min-height: 12px; }
+.rtile.ok { border-color: #86efac; background: #f0fdf4; }
+.rtile.bad { border-color: #fca5a5; background: #fef2f2; }
+.rtile.bad .rval { color: #b91c1c; }
+.std-note { margin: 8px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.history { margin-top: 8px; }
+.history summary { cursor: pointer; font-weight: 600; color: var(--brand); font-size: 13px; }
+.table-wrap { overflow-x: auto; margin-top: 6px; }
+.history table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.history th, .history td { padding: 4px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.history th:first-child, .history td:first-child { text-align: left; }
+.history th { color: var(--muted); font-weight: 600; }
+.history td.bad { color: #b91c1c; font-weight: 700; background: #fef2f2; }

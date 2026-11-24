@@ -16,8 +16,23 @@ const MAEKHA = {
   flow: "#f5f3ff",      // moving dashes
 };
 
+// เกณฑ์อ้างอิง: มาตรฐานคุณภาพน้ำในแหล่งน้ำผิวดิน ประเภทที่ 3 (ประกาศ กก.วล. ฉบับที่ 8 พ.ศ. 2537)
+const STANDARD = {
+  label: "มาตรฐานแหล่งน้ำผิวดินประเภทที่ 3",
+  pH:  { min: 5, max: 9, text: "5–9" },
+  DO:  { min: 4.0, text: "≥ 4.0" },
+  BOD: { max: 2.0, text: "≤ 2.0" },
+};
+
+const PARAM_LABEL = {
+  pH: "pH", Turb: "ความขุ่น", Cond: "การนำไฟฟ้า", Sal: "ความเค็ม", DO: "DO",
+  Temp: "อุณหภูมิ", BOD: "BOD", COD: "COD", SS: "SS", TDS: "TDS",
+};
+
 const state = {
   points: [],
+  results: {},          // code -> [{date, pH, DO, BOD, ...}] sorted by date
+  units: {},
   landmarks: [],
   river: null,          // array of [lat,lng]
   facts: null,          // river_facts.json (click → popup)
@@ -46,7 +61,7 @@ function escapeHtml(s) {
 }
 
 async function init() {
-  const [data, rivers, otherRivers, reservoir, maekha, facts, factories] = await Promise.all([
+  const [data, rivers, otherRivers, reservoir, maekha, facts, factories, results] = await Promise.all([
     fetch("data.json?v=3").then((r) => r.json()),
     fetch("rivers.geojson?v=4").then((r) => r.json()).catch(() => null),
     fetch("rivers_other.geojson?v=2").then((r) => r.json()).catch(() => null),
@@ -54,7 +69,9 @@ async function init() {
     fetch("maekha.geojson?v=1").then((r) => r.json()).catch(() => null),
     fetch("river_facts.json?v=1").then((r) => r.json()).catch(() => null),
     fetch("factories.json?v=2").then((r) => r.json()).catch(() => null),
+    fetch("results.json?v=1").then((r) => r.json()).catch(() => null),
   ]);
+  if (results) { state.results = results.results || {}; state.units = results.units || {}; }
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
   state.facts = facts;
@@ -509,9 +526,80 @@ function selectPoint(code) {
     <div class="kv"><b>กลุ่ม</b><span class="tag" style="background:${groupColor(p.group)}">${escapeHtml(p.groupLabel)}</span></div>
     <div class="kv"><b>พิกัด</b><span>${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span></div>
     <div class="kv"><b>DMS</b><span>${escapeHtml(p.dms || "")}</span></div>
-    <div class="kv"><b></b><a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">เปิดใน Google Maps ↗</a></div>`;
+    <div class="kv"><b></b><a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">เปิดใน Google Maps ↗</a></div>
+    ${resultsHtml(p.code)}`;
   render();
   state.map.setView([p.latitude, p.longitude], Math.max(state.map.getZoom(), 14), { animate: true });
+}
+
+// ---------- ผลตรวจคุณภาพน้ำ ----------
+function numOf(v) {
+  if (v == null) return null;
+  if (typeof v === "object" && "lt" in v) return v.lt;
+  return typeof v === "number" ? v : null;
+}
+
+function fmtVal(v) {
+  if (v == null) return "–";
+  if (typeof v === "object" && "lt" in v) return `<${v.lt}`;
+  return String(v);
+}
+
+// true = ผ่าน, false = ไม่ผ่าน, null = ไม่มีเกณฑ์
+function passes(param, v) {
+  const std = STANDARD[param];
+  if (!std || v == null) return null;
+  const n = numOf(v);
+  if (n == null) return null;
+  const isLt = typeof v === "object";
+  if (std.min != null && !isLt && n < std.min) return false;
+  if (std.max != null && n > std.max) return false;   // "<x" ถือว่า ≤ x
+  return true;
+}
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const mon = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][m - 1];
+  return `${d} ${mon} ${String(y + 543).slice(2)}`;
+}
+
+function cell(param, v) {
+  const ok = passes(param, v);
+  const cls = ok === false ? "bad" : ok === true ? "ok" : "";
+  return `<td class="${cls}">${escapeHtml(fmtVal(v))}</td>`;
+}
+
+function resultsHtml(code) {
+  const rows = state.results[code];
+  if (!rows || !rows.length) return "";
+  const latest = rows[rows.length - 1];
+  const fails = rows.filter((r) => ["pH", "DO", "BOD"].some((k) => passes(k, r[k]) === false)).length;
+  const tiles = ["pH", "DO", "BOD", "COD", "SS", "Turb", "Temp", "TDS"].map((k) => {
+    const ok = passes(k, latest[k]);
+    return `<div class="rtile ${ok === false ? "bad" : ok === true ? "ok" : ""}">
+      <span class="rlabel">${PARAM_LABEL[k]}</span>
+      <span class="rval">${escapeHtml(fmtVal(latest[k]))}</span>
+      <span class="runit">${escapeHtml(state.units[k] || "")}</span>
+    </div>`;
+  }).join("");
+  const hist = rows.slice().reverse().map((r) => `
+    <tr><td>${fmtDate(r.date)}</td>${cell("pH", r.pH)}${cell("DO", r.DO)}${cell("BOD", r.BOD)}${cell("COD", r.COD)}${cell("SS", r.SS)}${cell("Turb", r.Turb)}</tr>`).join("");
+  return `
+    <div class="results">
+      <div class="results-head">
+        <b>ผลตรวจล่าสุด</b><span>${fmtDate(latest.date)}</span>
+      </div>
+      <div class="rtiles">${tiles}</div>
+      <p class="std-note">เทียบ${STANDARD.label}: pH ${STANDARD.pH.text} · DO ${STANDARD.DO.text} · BOD ${STANDARD.BOD.text} mg/L
+        — ไม่ผ่าน ${fails} จาก ${rows.length} รอบ</p>
+      <details class="history">
+        <summary>ผลย้อนหลัง ${rows.length} รอบ</summary>
+        <div class="table-wrap"><table>
+          <thead><tr><th>วันที่</th><th>pH</th><th>DO</th><th>BOD</th><th>COD</th><th>SS</th><th>ขุ่น</th></tr></thead>
+          <tbody>${hist}</tbody>
+        </table></div>
+      </details>
+    </div>`;
 }
 
 function fitToVisible() {
