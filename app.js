@@ -858,7 +858,7 @@ function pairHtml(code) {
           : `<em class="db-v db-vb" style="left:${xb}%">${escapeHtml(fmtVal(b))}</em>
         <em class="db-v db-va" style="left:${xa}%;color:${vcol}">${escapeHtml(fmtVal(a))}</em>`}
       </span>
-      <span class="db-chg" style="background:${c.color};color:${c.ink}">${sv.text}</span>
+      <span class="db-chg" style="background:${c.color};color:${c.ink}">${escapeHtml(sv.text)}</span>
     </div>`;
   }).join("");
 
