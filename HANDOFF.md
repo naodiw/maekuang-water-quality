@@ -173,3 +173,4 @@ push ขึ้น `master` → GitHub Pages เด้งเองใน ~1 น�
 - อัปเดต: `python build_results.py` แล้ว bump `results.json?v=` ใน app.js
 - ค่า `<x` เก็บเป็น `{"lt": x}`
 - เกณฑ์ใน `STANDARD` (app.js) = มาตรฐานแหล่งน้ำผิวดินประเภทที่ 3 (pH 5–9, DO ≥4, BOD ≤2) — ถ้าแม่กวงถูกจัดเป็นประเภทอื่น แก้ที่นี่ที่เดียว
+- **Timeline** (แถบเลื่อนบนแผนที่): `state.months` = เดือนที่มีผล (YYYY-MM) จาก results.json, `setMonth(i)` เปลี่ยนรอบ → `refreshPins()` (ขอบเขียว/แดง/จาง ตาม `pointStatus`) + `renderSelected()`; จุด • สีส้มใต้เดือน = มีผลจุดก่อน-หลังโรงงาน
