@@ -121,8 +121,6 @@ async function init() {
     fetch("results.json?v=2").then((r) => r.json()).catch(() => null),
   ]);
   if (results) { state.results = results.results || {}; state.units = results.units || {}; }
-  state.months = [...new Set(Object.values(state.results).flat().map((r) => r.date.slice(0, 7)))].sort();
-  state.monthIdx = state.months.length - 1;
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
   state.landmarks = data.landmarks || [];
   state.facts = facts;
@@ -524,7 +522,7 @@ function buildFilters() {
   els.groupFilter.querySelectorAll("[data-filter]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.filter = btn.dataset.filter;
-      buildFilters(); render(); updateTimelineUI(); fitToVisible();
+      buildFilters(); rebuildTimeline(); render(); fitToVisible();
     });
   });
 }
@@ -574,23 +572,83 @@ function pointStatus(code) {
   return c ? `c${c}` : "none";
 }
 
-function setupTimeline() {
+// รอบบน timeline = รอบที่เก็บจริงของกลุ่มที่เลือก
+// ถ้าดูหลายกลุ่ม (ทั้งหมด) ใช้รอบของกลุ่มที่เก็บบ่อยที่สุด
+function groupMonths(group) {
+  const set = new Set();
+  for (const p of state.points) {
+    if (p.group !== group) continue;
+    for (const r of state.results[p.code] || []) set.add(r.date.slice(0, 7));
+  }
+  return [...set].sort();
+}
+
+function timelineMonths() {
+  const groups = state.filter === "all" ? Object.keys(GROUP_META) : [state.filter];
+  let best = [];
+  for (const g of groups) { const m = groupMonths(g); if (m.length > best.length) best = m; }
+  return best;
+}
+
+// วันที่เก็บจริงของกลุ่มที่แสดง ในรอบ ym (เรียงเก่า→ใหม่)
+function roundDates(ym) {
+  const set = new Set();
+  for (const p of state.points) {
+    if (!isVisible(p)) continue;
+    const r = rowForMonth(p.code, ym);
+    if (r) set.add(r.date);
+  }
+  return [...set].sort();
+}
+
+function buildTicks() {
   const box = document.getElementById("timeline");
-  if (!box) return;
-  if (!state.months.length) { box.remove(); return; }
   const range = box.querySelector("#tlRange");
-  range.max = state.months.length - 1;
-  range.value = state.monthIdx;
+  range.max = Math.max(state.months.length - 1, 0);
+  range.disabled = state.months.length < 2;
+  const few = state.months.length <= 6;     // รอบน้อย → แสดงวันที่เก็บจริงบนแถบ
+  box.classList.toggle("is-few", few);
   box.querySelector("#tlTicks").innerHTML = state.months.map((ym, i) => {
-    const hasBA = state.points.some((p) => p.group === "beforeafter" && rowForMonth(p.code, ym));
+    const hasBA = state.filter === "all" &&
+      state.points.some((p) => p.group === "beforeafter" && rowForMonth(p.code, ym));
+    const d = roundDates(ym)[0];
+    const label = few && d ? fmtDate(d) : TH_MONTH[Number(ym.slice(5)) - 1];
     return `<button type="button" class="tl-tick" data-i="${i}" title="${fmtMonth(ym)}">
-      <span>${TH_MONTH[Number(ym.slice(5)) - 1]}</span>${hasBA ? '<i class="tl-ba" title="มีผลจุดก่อน-หลังโรงงาน"></i>' : ""}
+      <span>${label}</span>${hasBA ? '<i class="tl-ba" title="มีผลจุดก่อน-หลังโรงงาน"></i>' : ""}
     </button>`;
   }).join("");
-  range.addEventListener("input", () => { stopPlay(); setMonth(Number(range.value)); });
   box.querySelectorAll(".tl-tick").forEach((b) =>
     b.addEventListener("click", () => { stopPlay(); setMonth(Number(b.dataset.i)); }));
+}
+
+// เรียกเมื่อเปลี่ยนกลุ่ม: สร้างรอบใหม่ คงรอบเดิมถ้ามี ไม่งั้นใช้รอบก่อนหน้าที่ใกล้สุด
+function rebuildTimeline() {
+  const box = document.getElementById("timeline");
+  if (!box) return;
+  stopPlay();
+  const prev = currentMonth();
+  state.months = timelineMonths();
+  let i = prev ? state.months.indexOf(prev) : -1;
+  if (i < 0 && prev) i = state.months.filter((m) => m < prev).length - 1;
+  if (i < 0) i = prev ? 0 : state.months.length - 1;
+  state.monthIdx = i;
+  box.hidden = !state.months.length;
+  buildTicks();
+  updateTimelineUI();
+  refreshPins();
+  if (state.selected) renderSelected();
+}
+
+function setupTimeline() {
+  const box = document.getElementById("timeline");
+  state.months = timelineMonths();          // ต้องหลังโหลด points แล้ว
+  state.monthIdx = state.months.length - 1;
+  if (!box) return;
+  if (!state.months.length) { box.hidden = true; }
+  const range = box.querySelector("#tlRange");
+  range.addEventListener("input", () => { stopPlay(); setMonth(Number(range.value)); });
   box.querySelector("#tlPlay").addEventListener("click", () => (state.playTimer ? stopPlay() : startPlay()));
+  buildTicks();
   updateTimelineUI();
 }
 
@@ -629,7 +687,7 @@ function updateTimelineUI() {
   const pts = state.points.filter((p) => isVisible(p) && rowForMonth(p.code));
   const counts = {};
   for (const p of pts) { const c = sampleClass(rowForMonth(p.code)); counts[c] = (counts[c] || 0) + 1; }
-  const dates = [...new Set(pts.map((p) => rowForMonth(p.code).date))].sort().map(fmtDate);
+  const dates = roundDates(ym).map(fmtDate);
   box.querySelector("#tlLabel").textContent = `รอบ ${fmtMonth(ym)}`;
   box.querySelector("#tlDates").textContent = dates.length ? `เก็บ ${dates.join(", ")}` : "กลุ่มนี้ไม่ได้เก็บในรอบนี้";
   box.querySelector("#tlStat").innerHTML = [2, 3, 4, 5].filter((c) => counts[c])
