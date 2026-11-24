@@ -543,10 +543,13 @@ function addMarkers() {
 function pinIcon(p) {
   const st = pointStatus(p.code);
   const active = p.code === state.selected ? " is-active" : "";
+  // แม่กวง / แม่ข่า: ใส่เลขประเภทน้ำของรอบที่เลือกกลางหมุด
+  const num = (p.group === "kuang" || p.group === "maekha") && st !== "none" ? st.slice(1) : "";
+  const size = num ? 24 : 18;
   return L.divIcon({
     className: "",
-    html: `<div class="pin pin-${p.group} st-${st}${active}" style="background:${groupColor(p.group)}"></div>`,
-    iconSize: [18, 18], iconAnchor: [9, 9],
+    html: `<div class="pin pin-${p.group} st-${st}${active}${num ? " pin-num" : ""}" style="background:${groupColor(p.group)}">${num}</div>`,
+    iconSize: [size, size], iconAnchor: [size / 2, size / 2],
   });
 }
 
