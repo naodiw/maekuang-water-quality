@@ -136,7 +136,9 @@ async function init() {
   addLandmarks();                                  // source + dam markers
   buildFilters();
   addMarkers();
+  state.map.on("zoomend", refreshPairCards);
   setupTimeline();
+  refreshPairCards();                              // การ์ดก่อน→หลังบนแผนที่
   render();
   fitToVisible();
   setupLegend();
@@ -549,6 +551,7 @@ function pinIcon(p) {
 }
 
 function refreshPins() {
+  refreshPairCards();
   for (const p of state.points) state.markers[p.code]?.setIcon(pinIcon(p));
 }
 
@@ -882,6 +885,93 @@ function pairRounds(pair) {
 
 function factoryForPair(pair) {
   return (state.monitored || []).find((f) => f.beforeCode === pair.before || f.afterCode === pair.after) || null;
+}
+
+// ---------- การ์ดก่อน→หลังบนแผนที่ (วางกลางระหว่างจุดคู่) ----------
+const CARD_PARAMS = [["DO", "DO"], ["BOD", "BOD"], ["COD", "COD"], ["SS", "SS"], ["Cond", "EC"]];
+const SEV_RANK = { hi: 3, mid: 2, same: 1, better: 0 };
+
+function shortFactory(name) {
+  return String(name || "")
+    .replace(/ห้างหุ้นส่วนจำกัด|บริษัท|จำกัด|\(มหาชน\)|แอนด์ เซอร์วิส/g, "")
+    .replace(/สันติภาพ\s*\((.*?)\)/, "$1")
+    .replace(/\s+/g, " ").trim();
+}
+
+function pairRoundFor(pair) {
+  const rounds = pairRounds(pair);
+  if (!rounds.length) return null;
+  const ym = currentMonth() || "";
+  const exact = rounds.find((r) => r.b.date.startsWith(ym));
+  const sel = exact || rounds.filter((r) => r.b.date.slice(0, 7) < ym).pop() || rounds[0];
+  return { sel, exact: !!exact };
+}
+
+function pairCardHtml(f, pair, rr, compact) {
+  const { sel, exact } = rr;
+  const items = CARD_PARAMS.map(([k, lab]) => {
+    const sv = pairSeverity(k, sel.b[k], sel.a[k]);
+    return sv ? { k, lab, sv, nb: numOf(sel.b[k]), na: numOf(sel.a[k]) } : null;
+  }).filter(Boolean);
+  const worst = items.reduce((w, x) => (SEV_RANK[x.sv.level] > SEV_RANK[w] ? x.sv.level : w), "better");
+  const name = shortFactory(f?.name) || `${pair.before}→${pair.after}`;
+  const mon = `${TH_MONTH[Number(sel.b.date.slice(5, 7)) - 1]} ${String(Number(sel.b.date.slice(0, 4)) + 543).slice(2)}`;
+  if (compact) {
+    const cells = items.map((x) => `<i style="background:${SEV[x.sv.level].color}" title="${x.lab} ${x.sv.text}"></i>`).join("");
+    return `<div class="pcm pcm-compact ${exact ? "" : "is-stale"}" style="border-color:${SEV[worst].color}">${cells}</div>`;
+  }
+  const bars = items.map((x) => {
+    const max = Math.max(x.nb, x.na) || 1;
+    const hb = Math.max(2, Math.round((x.nb / max) * 30)), ha = Math.max(2, Math.round((x.na / max) * 30));
+    const c = SEV[x.sv.level];
+    const tcol = x.sv.level === "mid" ? "#b45309" : x.sv.level === "same" ? "#64748b" : c.color;
+    return `<div class="pcm-p" title="${x.lab}: ก่อน ${fmtVal(sel.b[x.k])} → หลัง ${fmtVal(sel.a[x.k])}">
+      <div class="pcm-pair"><i class="pcm-b" style="height:${hb}px"></i><i class="pcm-a" style="height:${ha}px;background:${c.color}"></i></div>
+      <span class="pcm-l">${x.lab}</span><em style="color:${tcol}">${escapeHtml(x.sv.text)}</em>
+    </div>`;
+  }).join("");
+  return `<div class="pcm ${exact ? "" : "is-stale"}" style="border-color:${SEV[worst].color}">
+    <div class="pcm-h"><b>${escapeHtml(name)}</b><span>${exact ? "" : "ล่าสุด "}${mon}</span></div>
+    <div class="pcm-bars">${bars}</div>
+  </div>`;
+}
+
+function refreshPairCards() {
+  if (!state.map) return;
+  state.pairLayer ||= L.layerGroup().addTo(state.map);
+  state.pairLayer.clearLayers();
+  if (!(state.filter === "all" || state.filter === "beforeafter")) return;
+  const compact = state.map.getZoom() < 12;
+  const seen = new Set();
+  for (const p of state.points) {
+    if (p.group !== "beforeafter") continue;
+    const pair = pairOf(p.code);
+    if (seen.has(pair.before)) continue;
+    seen.add(pair.before);
+    const B = state.points.find((x) => x.code === pair.before), A = state.points.find((x) => x.code === pair.after);
+    const rr = B && A && pairRoundFor(pair);
+    if (!rr) continue;
+    const f = factoryForPair(pair);
+    const html = pairCardHtml(f, pair, rr, compact);
+    const worstColor = (html.match(/border-color:(#[0-9A-Fa-f]{6})/) || [])[1] || SEV.same.color;
+    // เส้นประเชื่อมก่อน→หลัง สีตามค่าที่แย่ที่สุด
+    L.polyline([[B.latitude, B.longitude], [A.latitude, A.longitude]], {
+      color: worstColor, weight: 3, opacity: 0.8, dashArray: "6 6", interactive: false,
+    }).addTo(state.pairLayer);
+    const mid = [(B.latitude + A.latitude) / 2, (B.longitude + A.longitude) / 2];
+    L.marker(mid, {
+      icon: L.divIcon({
+        className: "pcm-wrap",
+        html: `${html}<div class="pcm-stem" style="background:${worstColor}"></div>`,
+        iconSize: null,
+        iconAnchor: compact ? [0, 0] : [0, 0],
+      }),
+      zIndexOffset: 400,
+      keyboard: false,
+    }).on("click", () => selectPoint(pair.after))
+      .bindTooltip(`${f ? f.name : ""} · ก่อน ${pair.before} → หลัง ${pair.after}`, { direction: "bottom", offset: [0, 6] })
+      .addTo(state.pairLayer);
+  }
 }
 
 function pairHtml(code) {
