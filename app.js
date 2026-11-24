@@ -16,13 +16,49 @@ const MAEKHA = {
   flow: "#f5f3ff",      // moving dashes
 };
 
-// เกณฑ์อ้างอิง: มาตรฐานคุณภาพน้ำในแหล่งน้ำผิวดิน ประเภทที่ 3 (ประกาศ กก.วล. ฉบับที่ 8 พ.ศ. 2537)
-const STANDARD = {
-  label: "มาตรฐานแหล่งน้ำผิวดินประเภทที่ 3",
-  pH:  { min: 5, max: 9, text: "5–9" },
-  DO:  { min: 4.0, text: "≥ 4.0" },
-  BOD: { max: 2.0, text: "≤ 2.0" },
+// ประเภทแหล่งน้ำผิวดิน (ประกาศ กก.วล. ฉบับที่ 8 พ.ศ. 2537) — จัดจาก DO และ BOD
+// รายตัวอย่าง: ค่าของครั้งนั้น · รายจุด: DO เปอร์เซ็นไทล์ 20 + BOD เปอร์เซ็นไทล์ 80 ของทุกครั้ง
+// ค่า "<x" ใช้ค่าขีดจำกัด x (เหมือนสไลด์สรุปผล ศวภ.น.)
+const CLASS_STD = [
+  { cls: 2, doMin: 6.0, bodMax: 1.5 },
+  { cls: 3, doMin: 4.0, bodMax: 2.0 },
+  { cls: 4, doMin: 2.0, bodMax: 4.0 },
+];
+const CLASS_META = {
+  2: { color: "#2E7D5B", ink: "#fff", use: "อุปโภคบริโภค (ฆ่าเชื้อ + ปรับปรุงทั่วไป) · อนุรักษ์สัตว์น้ำ · ประมง · ว่ายน้ำ" },
+  3: { color: "#155E8A", ink: "#fff", use: "อุปโภคบริโภค (ฆ่าเชื้อ + ปรับปรุงพิเศษ) · การเกษตร" },
+  4: { color: "#F5A65B", ink: "#3D1405", use: "อุปโภคบริโภค (ฆ่าเชื้อ + ปรับปรุงพิเศษ) · การอุตสาหกรรม" },
+  5: { color: "#A11D17", ink: "#fff", use: "การคมนาคม" },
 };
+
+function classOf(doV, bodV) {
+  if (doV == null || bodV == null) return null;
+  for (const c of CLASS_STD) if (doV >= c.doMin && bodV <= c.bodMax) return c.cls;
+  return 5;
+}
+
+function percentile(xs, q) {
+  const a = xs.slice().sort((x, y) => x - y);
+  const k = (a.length - 1) * q, f = Math.floor(k), c = Math.min(f + 1, a.length - 1);
+  return a[f] + (a[c] - a[f]) * (k - f);
+}
+
+function sampleClass(r) { return r ? classOf(numOf(r.DO), numOf(r.BOD)) : null; }
+
+// ประเภทรายจุดทั้งปี
+function pointClass(code) {
+  const rows = (state.results[code] || []).filter((r) => numOf(r.DO) != null && numOf(r.BOD) != null);
+  if (!rows.length) return null;
+  const do20 = percentile(rows.map((r) => numOf(r.DO)), 0.2);
+  const bod80 = percentile(rows.map((r) => numOf(r.BOD)), 0.8);
+  return { cls: classOf(do20, bod80), do20, bod80, n: rows.length };
+}
+
+function classBadge(c, text) {
+  if (!c) return "";
+  const m = CLASS_META[c];
+  return `<span class="cbadge" style="background:${m.color};color:${m.ink}">${text || `ประเภท ${c}`}</span>`;
+}
 
 const PARAM_LABEL = {
   pH: "pH", Turb: "ความขุ่น", Cond: "การนำไฟฟ้า", Sal: "ความเค็ม", DO: "DO",
@@ -525,15 +561,10 @@ function rowForMonth(code, ym = currentMonth()) {
   return (state.results[code] || []).find((r) => r.date.startsWith(ym)) || null;
 }
 
-function rowFails(r) {
-  return ["pH", "DO", "BOD"].some((k) => passes(k, r[k]) === false);
-}
-
-// ok | bad | none (ไม่มีการเก็บในรอบนี้)
+// c2..c5 = ประเภทของตัวอย่างในรอบที่เลือก · none = ไม่มีการเก็บในรอบนี้
 function pointStatus(code) {
-  const r = rowForMonth(code);
-  if (!r) return "none";
-  return rowFails(r) ? "bad" : "ok";
+  const c = sampleClass(rowForMonth(code));
+  return c ? `c${c}` : "none";
 }
 
 function setupTimeline() {
@@ -589,13 +620,13 @@ function updateTimelineUI() {
   box.querySelector("#tlRange").value = state.monthIdx;
   box.querySelectorAll(".tl-tick").forEach((b) => b.classList.toggle("is-active", Number(b.dataset.i) === state.monthIdx));
   const pts = state.points.filter((p) => isVisible(p) && rowForMonth(p.code));
-  const bad = pts.filter((p) => pointStatus(p.code) === "bad").length;
+  const counts = {};
+  for (const p of pts) { const c = sampleClass(rowForMonth(p.code)); counts[c] = (counts[c] || 0) + 1; }
   const dates = [...new Set(pts.map((p) => rowForMonth(p.code).date))].sort().map(fmtDate);
   box.querySelector("#tlLabel").textContent = `รอบ ${fmtMonth(ym)}`;
   box.querySelector("#tlDates").textContent = dates.length ? `เก็บ ${dates.join(", ")}` : "กลุ่มนี้ไม่ได้เก็บในรอบนี้";
-  box.querySelector("#tlStat").innerHTML = pts.length
-    ? `<b class="tl-bad">${bad}</b> ไม่ผ่าน · <b class="tl-ok">${pts.length - bad}</b> ผ่าน`
-    : "";
+  box.querySelector("#tlStat").innerHTML = [2, 3, 4, 5].filter((c) => counts[c])
+    .map((c) => classBadge(c, `ป.${c} · ${counts[c]}`)).join("");
 }
 
 function isVisible(p) {
@@ -660,28 +691,10 @@ function fmtVal(v) {
   return String(v);
 }
 
-// true = ผ่าน, false = ไม่ผ่าน, null = ไม่มีเกณฑ์
-function passes(param, v) {
-  const std = STANDARD[param];
-  if (!std || v == null) return null;
-  const n = numOf(v);
-  if (n == null) return null;
-  const isLt = typeof v === "object";
-  if (std.min != null && !isLt && n < std.min) return false;
-  if (std.max != null && n > std.max) return false;   // "<x" ถือว่า ≤ x
-  return true;
-}
-
 function fmtDate(iso) {
   const [y, m, d] = iso.split("-").map(Number);
   const mon = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][m - 1];
   return `${d} ${mon} ${String(y + 543).slice(2)}`;
-}
-
-function cell(param, v) {
-  const ok = passes(param, v);
-  const cls = ok === false ? "bad" : ok === true ? "ok" : "";
-  return `<td class="${cls}">${escapeHtml(fmtVal(v))}</td>`;
 }
 
 function resultsHtml(code) {
@@ -691,35 +704,66 @@ function resultsHtml(code) {
   const cur = ym ? rowForMonth(code, ym) : rows[rows.length - 1];
   // ถ้ารอบนี้ไม่มีการเก็บ แสดงรอบก่อนหน้าที่ใกล้ที่สุด (หรือรอบแรก)
   const latest = cur || rows.filter((r) => r.date.slice(0, 7) < ym).pop() || rows[0];
-  const fails = rows.filter(rowFails).length;
-  const tileKeys = ["pH", "DO", "BOD", "COD", "SS", "Turb", "TDS"];
+  const pc = pointClass(code);
+
+  // ---- ประเภทแหล่งน้ำทั้งปี (เหมือนสไลด์สรุป) ----
+  let yearHtml = "";
+  if (pc) {
+    const m = CLASS_META[pc.cls];
+    const dist = {};
+    for (const r of rows) { const c = sampleClass(r); if (c) dist[c] = (dist[c] || 0) + 1; }
+    const bar = [2, 3, 4, 5].filter((c) => dist[c]).map((c) =>
+      `<span style="flex:${dist[c]};background:${CLASS_META[c].color};color:${CLASS_META[c].ink}" title="ประเภท ${c}: ${dist[c]} ครั้ง">${dist[c] / pc.n >= 0.12 ? c : ""}</span>`).join("");
+    yearHtml = `
+      <div class="yclass">
+        <div class="ybig" style="background:${m.color};color:${m.ink}">
+          <span class="ylab">ประเภทแหล่งน้ำ</span><span class="ynum">${pc.cls}</span>
+        </div>
+        <div class="yinfo">
+          <div class="ystats"><span>DO P20 <b>${pc.do20.toFixed(2)}</b></span><span>BOD P80 <b>${pc.bod80.toFixed(2)}</b></span><span class="yunit">mg/L · ${pc.n} ครั้ง</span></div>
+          <div class="ybar">${bar}</div>
+          <p class="yuse">ใช้ประโยชน์: ${m.use}</p>
+        </div>
+      </div>
+      ${pc.n < 6 ? `<p class="std-note warn">มีผลเพียง ${pc.n} ครั้ง — ใช้ดูแนวโน้มเท่านั้น</p>` : ""}`;
+  }
+
+  // ---- ค่าของรอบที่เลือก ----
+  const sc = sampleClass(latest);
+  const tileKeys = ["DO", "BOD", "pH", "COD", "SS", "Turb", "TDS"];
   tileKeys.push(latest.TKN != null ? "TKN" : latest["Cl-"] != null ? "Cl-" : "Temp");
   const tiles = tileKeys.map((k) => {
-    const ok = passes(k, latest[k]);
-    return `<div class="rtile ${ok === false ? "bad" : ok === true ? "ok" : ""}">
-      <span class="rlabel">${PARAM_LABEL[k]}</span>
+    const c = k === "DO" ? classOf(numOf(latest.DO), -1) : k === "BOD" ? classOf(Infinity, numOf(latest.BOD)) : null;
+    const style = c ? ` style="border-color:${CLASS_META[c].color};box-shadow:inset 0 3px 0 ${CLASS_META[c].color}"` : "";
+    return `<div class="rtile"${style}>
+      <span class="rlabel">${PARAM_LABEL[k]}${c ? ` <em>ป.${c}</em>` : ""}</span>
       <span class="rval">${escapeHtml(fmtVal(latest[k]))}</span>
       <span class="runit">${escapeHtml(state.units[k] || "")}</span>
     </div>`;
   }).join("");
+
   const hist = rows.slice().reverse().map((r) => `
-    <tr class="${r === latest ? "is-cur" : ""}"><td>${fmtDate(r.date)}</td>${cell("pH", r.pH)}${cell("DO", r.DO)}${cell("BOD", r.BOD)}${cell("COD", r.COD)}${cell("SS", r.SS)}${cell("Turb", r.Turb)}</tr>`).join("");
+    <tr class="${r === latest ? "is-cur" : ""}"><td>${fmtDate(r.date)}</td><td>${classBadge(sampleClass(r), String(sampleClass(r) || "–"))}</td><td>${escapeHtml(fmtVal(r.DO))}</td><td>${escapeHtml(fmtVal(r.BOD))}</td><td>${escapeHtml(fmtVal(r.pH))}</td><td>${escapeHtml(fmtVal(r.COD))}</td><td>${escapeHtml(fmtVal(r.SS))}</td></tr>`).join("");
+
   return `
     <div class="results">
+      ${yearHtml}
       <div class="results-head">
-        <b>${cur ? `ผลตรวจรอบ ${fmtMonth(ym)}` : "รอบนี้ไม่ได้เก็บ"}</b><span>${cur ? "" : "แสดงรอบ "}${fmtDate(latest.date)}</span>
+        <b>${cur ? `รอบ ${fmtMonth(ym)}` : "รอบนี้ไม่ได้เก็บ"}</b>
+        <span>${cur ? "" : "แสดงรอบ "}${fmtDate(latest.date)} ${classBadge(sc)}</span>
       </div>
       <div class="rtiles ${cur ? "" : "is-stale"}">${tiles}</div>
-      <p class="std-note">เทียบ${STANDARD.label}: pH ${STANDARD.pH.text} · DO ${STANDARD.DO.text} · BOD ${STANDARD.BOD.text} mg/L
-        — ไม่ผ่าน ${fails} จาก ${rows.length} รอบ</p>
       ${pairHtml(code)}
       <details class="history">
-        <summary>ผลย้อนหลัง ${rows.length} รอบ</summary>
+        <summary>ผลย้อนหลัง ${rows.length} ครั้ง</summary>
         <div class="table-wrap"><table>
-          <thead><tr><th>วันที่</th><th>pH</th><th>DO</th><th>BOD</th><th>COD</th><th>SS</th><th>ขุ่น</th></tr></thead>
+          <thead><tr><th>วันที่</th><th>ประเภท</th><th>DO</th><th>BOD</th><th>pH</th><th>COD</th><th>SS</th></tr></thead>
           <tbody>${hist}</tbody>
         </table></div>
       </details>
+      <p class="std-note">จัดประเภทตามมาตรฐานคุณภาพน้ำผิวดิน (กก.วล. 2537) จาก DO และ BOD ·
+        ประเภทแหล่งน้ำ = DO P20 (80% ของครั้งที่ตรวจมี DO สูงกว่าค่านี้) และ BOD P80 (80% มี BOD ต่ำกว่าค่านี้) ·
+        ค่า "&lt;" ใช้ค่าขีดจำกัด · ยังไม่รวม coliform และ NH₃-N</p>
     </div>`;
 }
 

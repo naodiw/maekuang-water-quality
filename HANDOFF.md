@@ -172,5 +172,5 @@ push ขึ้น `master` → GitHub Pages เด้งเองใน ~1 น�
 - จุดก่อน-หลัง: เลขคี่ = ก่อน, เลขคู่ = หลัง (`pairOf()` ใน app.js) — panel แสดงตารางเทียบ แดง = หลังแย่ลง >20%
 - อัปเดต: `python build_results.py` แล้ว bump `results.json?v=` ใน app.js
 - ค่า `<x` เก็บเป็น `{"lt": x}`
-- เกณฑ์ใน `STANDARD` (app.js) = มาตรฐานแหล่งน้ำผิวดินประเภทที่ 3 (pH 5–9, DO ≥4, BOD ≤2) — ถ้าแม่กวงถูกจัดเป็นประเภทอื่น แก้ที่นี่ที่เดียว
+- **จัดประเภทแหล่งน้ำ 2–5** (กก.วล. 2537) จาก DO/BOD — `CLASS_STD` ใน app.js: รายตัวอย่าง = ค่าครั้งนั้น (สีขอบหมุดบน timeline), รายจุด = DO P20 + BOD P80 ทุกครั้ง (percentile แบบ linear, `<x` ใช้ x) — ตรงกับสไลด์สรุปผล ศวภ.น. (KG09 2.18/3.16 → ป.4) · ยังไม่มี coliform/NH3-N
 - **Timeline** (แถบเลื่อนบนแผนที่): `state.months` = เดือนที่มีผล (YYYY-MM) จาก results.json, `setMonth(i)` เปลี่ยนรอบ → `refreshPins()` (ขอบเขียว/แดง/จาง ตาม `pointStatus`) + `renderSelected()`; จุด • สีส้มใต้เดือน = มีผลจุดก่อน-หลังโรงงาน
