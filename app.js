@@ -138,7 +138,7 @@ async function init() {
   addMarkers();
   state.map.on("zoomend", refreshPairCards);
   setupTimeline();
-  refreshPairCards();                              // การ์ดก่อน→หลังบนแผนที่
+  refreshPins();                                   // สถานะหมุด + การ์ดก่อน→หลัง ตามรอบล่าสุด
   render();
   fitToVisible();
   setupLegend();
