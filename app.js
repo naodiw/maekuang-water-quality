@@ -26,8 +26,18 @@ const STANDARD = {
 
 const PARAM_LABEL = {
   pH: "pH", Turb: "ความขุ่น", Cond: "การนำไฟฟ้า", Sal: "ความเค็ม", DO: "DO",
-  Temp: "อุณหภูมิ", BOD: "BOD", COD: "COD", SS: "SS", TDS: "TDS",
+  Temp: "อุณหภูมิ", BOD: "BOD", COD: "COD", SS: "SS", TDS: "TDS", TKN: "TKN", "Cl-": "คลอไรด์",
 };
+
+// จุดก่อน-หลังโรงงาน: เลขคี่ = ก่อน, เลขคู่ = หลัง (KAB01/02, P13/14, PB05/06 ...)
+function pairOf(code) {
+  const m = code.match(/^(\D+)(\d+)$/);
+  if (!m) return null;
+  const n = Number(m[2]);
+  const isBefore = n % 2 === 1;
+  const other = m[1] + String(isBefore ? n + 1 : n - 1).padStart(m[2].length, "0");
+  return isBefore ? { before: code, after: other } : { before: other, after: code };
+}
 
 const state = {
   points: [],
@@ -69,7 +79,7 @@ async function init() {
     fetch("maekha.geojson?v=1").then((r) => r.json()).catch(() => null),
     fetch("river_facts.json?v=1").then((r) => r.json()).catch(() => null),
     fetch("factories.json?v=2").then((r) => r.json()).catch(() => null),
-    fetch("results.json?v=1").then((r) => r.json()).catch(() => null),
+    fetch("results.json?v=2").then((r) => r.json()).catch(() => null),
   ]);
   if (results) { state.results = results.results || {}; state.units = results.units || {}; }
   state.points = (data.points || []).filter((p) => p.latitude && p.longitude);
@@ -574,7 +584,9 @@ function resultsHtml(code) {
   if (!rows || !rows.length) return "";
   const latest = rows[rows.length - 1];
   const fails = rows.filter((r) => ["pH", "DO", "BOD"].some((k) => passes(k, r[k]) === false)).length;
-  const tiles = ["pH", "DO", "BOD", "COD", "SS", "Turb", "Temp", "TDS"].map((k) => {
+  const tileKeys = ["pH", "DO", "BOD", "COD", "SS", "Turb", "TDS"];
+  tileKeys.push(latest.TKN != null ? "TKN" : latest["Cl-"] != null ? "Cl-" : "Temp");
+  const tiles = tileKeys.map((k) => {
     const ok = passes(k, latest[k]);
     return `<div class="rtile ${ok === false ? "bad" : ok === true ? "ok" : ""}">
       <span class="rlabel">${PARAM_LABEL[k]}</span>
@@ -592,6 +604,7 @@ function resultsHtml(code) {
       <div class="rtiles">${tiles}</div>
       <p class="std-note">เทียบ${STANDARD.label}: pH ${STANDARD.pH.text} · DO ${STANDARD.DO.text} · BOD ${STANDARD.BOD.text} mg/L
         — ไม่ผ่าน ${fails} จาก ${rows.length} รอบ</p>
+      ${pairHtml(code)}
       <details class="history">
         <summary>ผลย้อนหลัง ${rows.length} รอบ</summary>
         <div class="table-wrap"><table>
@@ -600,6 +613,36 @@ function resultsHtml(code) {
         </table></div>
       </details>
     </div>`;
+}
+
+function pairHtml(code) {
+  const p = state.points.find((x) => x.code === code);
+  if (!p || p.group !== "beforeafter") return "";
+  const pair = pairOf(code);
+  const B = state.results[pair.before], A = state.results[pair.after];
+  if (!B || !A) return "";
+  const keys = ["DO", "BOD", "COD", "SS", "Cond", "TDS"];
+  const body = B.map((b) => {
+    const a = A.find((x) => x.date === b.date);
+    if (!a) return "";
+    return keys.map((k) => {
+      const nb = numOf(b[k]), na = numOf(a[k]);
+      // แย่ลง = DO ลด หรือค่าอื่นเพิ่ม (เกิน 20%)
+      const worse = nb != null && na != null && (k === "DO" ? na < nb * 0.8 : na > nb * 1.2 && na - nb > 1);
+      return `<tr>${k === keys[0] ? `<td rowspan="${keys.length}" class="pdate">${fmtDate(b.date)}</td>` : ""}
+        <td>${PARAM_LABEL[k] || k}</td><td>${escapeHtml(fmtVal(b[k]))}</td>
+        <td class="${worse ? "bad" : ""}">${escapeHtml(fmtVal(a[k]))}</td></tr>`;
+    }).join("");
+  }).reverse().join("");
+  return `
+    <details class="history pair" open>
+      <summary>เทียบก่อน ${pair.before} → หลัง ${pair.after} โรงงาน</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>รอบ</th><th></th><th>ก่อน</th><th>หลัง</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+      <p class="std-note">สีแดง = หลังโรงงานแย่ลงชัดเจน (DO ลด &gt;20% หรือค่าอื่นเพิ่ม &gt;20%)</p>
+    </details>`;
 }
 
 function fitToVisible() {

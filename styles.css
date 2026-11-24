@@ -430,3 +430,5 @@ html, body {
 .history th:first-child, .history td:first-child { text-align: left; }
 .history th { color: var(--muted); font-weight: 600; }
 .history td.bad { color: #b91c1c; font-weight: 700; background: #fef2f2; }
+.history.pair td.pdate { vertical-align: top; color: var(--muted); border-right: 1px solid var(--line); }
+.history.pair tbody tr:has(td.pdate) td { border-top: 2px solid var(--line); }
